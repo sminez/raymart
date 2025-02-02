@@ -1,4 +1,5 @@
-/// A simple 3D vector using f64s
+//! A simple 3D vector using f64s
+use rand::random_range;
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
@@ -13,8 +14,35 @@ pub struct V3 {
 }
 
 impl V3 {
-    pub const fn new(x: f64, y: f64, z: f64) -> Self {
+    pub const fn new(x: f64, y: f64, z: f64) -> V3 {
         Self { x, y, z }
+    }
+
+    pub fn random(min: f64, max: f64) -> V3 {
+        V3::new(
+            random_range(min..max),
+            random_range(min..max),
+            random_range(min..max),
+        )
+    }
+
+    pub fn random_unit_vector() -> V3 {
+        loop {
+            let p = Self::random(-1.0, 1.0);
+            let sq_len = p.square_length();
+            if 1e-160 < sq_len && sq_len < 1.0 {
+                return p / sq_len.sqrt(); // avoiding computing sq_len again
+            }
+        }
+    }
+
+    pub fn random_on_hemisphere(normal: &V3) -> V3 {
+        let v = Self::random_unit_vector();
+        if v.dot(normal) > 0.0 {
+            v // Same hemisphere as `normal`
+        } else {
+            -v
+        }
     }
 
     pub const fn dot(&self, rhs: &V3) -> f64 {
