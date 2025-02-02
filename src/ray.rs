@@ -1,7 +1,7 @@
 use crate::{
     hit::{Hittable, Interval},
-    v3::{Point3, V3},
-    Color, FOCAL_LENGTH,
+    v3::{P3, V3},
+    Color,
 };
 use rand::random_range;
 use rayon::prelude::*;
@@ -13,38 +13,54 @@ pub struct Camera {
     image_height: u16,       // rendered image height (pixels)
     samples_pp: u8,          // number of random samples per pixel
     max_bounces: u8,         // maximum number of ray bounces allowed
-    center: Point3,          // camera center
-    pixel_origin: Point3,    // location of pixel 0,0
+    center: P3,              // camera center
+    pixel_origin: P3,        // location of pixel 0,0
     pixel_delta_u: V3,       // offset to pixel to the right
     pixel_delta_v: V3,       // offset to pixel below
     pixel_sample_scale: f64, // color scale factor for a sum of pixel samples
 }
+// look_from: P3,           // the point that the camera is looking from
+// look_at: P3,             // the point that the camera is looking to
+// v_up: V3,                // the camera-relative "up" direction
+// u: V3,                   // camera frame basis vector (x)
+// v: V3,                   // camera frame basis vector (y)
+// w: V3,                   // camera frame basis vector (z)
 
 impl Camera {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         aspect_ratio: f64,
         image_width: u16,
         samples_pp: u8,
         max_bounces: u8,
         vfov: f64,
+        look_from: P3,
+        look_at: P3,
+        v_up: V3,
     ) -> Self {
         let image_height = max(1, (image_width as f64 / aspect_ratio) as u16);
-        let center = Point3::new(0.0, 0.0, 0.0);
+        let center = look_from;
         let pixel_sample_scale = 1.0 / samples_pp as f64;
 
         // viewport dimensions
+        let focal_length = (look_from - look_at).length();
         let theta = vfov.to_radians();
         let h = (theta / 2.0).tan();
-        let viewport_height = 2.0 * h * FOCAL_LENGTH;
+        let viewport_height = 2.0 * h * focal_length;
         let viewport_width = viewport_height * (image_width as f64 / image_height as f64);
-        let viewport_u = V3::new(viewport_width, 0.0, 0.0);
-        let viewport_v = V3::new(0.0, -viewport_height, 0.0);
+
+        // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
+        let w = (look_from - look_at).unit_vector();
+        let u = v_up.cross(&w);
+        let v = w.cross(&u);
+
+        let viewport_u = viewport_width * u;
+        let viewport_v = viewport_height * -v;
         let pixel_delta_u = viewport_u / image_width as f64;
         let pixel_delta_v = viewport_v / image_height as f64;
 
         // Calculate the location of the upper left pixel.
-        let viewport_upper_left =
-            center - V3::new(0.0, 0.0, FOCAL_LENGTH) - viewport_u / 2.0 - viewport_v / 2.0;
+        let viewport_upper_left = center - (focal_length * w) - viewport_u / 2.0 - viewport_v / 2.0;
         let pixel_origin = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
 
         Self {
@@ -57,6 +73,12 @@ impl Camera {
             pixel_delta_u,
             pixel_delta_v,
             pixel_sample_scale,
+            // look_from,
+            // look_at,
+            // v_up,
+            // v,
+            // u,
+            // w,
         }
     }
 
@@ -96,16 +118,16 @@ impl Camera {
 }
 
 pub struct Ray {
-    pub orig: Point3,
+    pub orig: P3,
     pub dir: V3,
 }
 
 impl Ray {
-    pub const fn new(orig: Point3, dir: V3) -> Self {
+    pub const fn new(orig: P3, dir: V3) -> Self {
         Self { orig, dir }
     }
 
-    pub fn at(&self, t: f64) -> Point3 {
+    pub fn at(&self, t: f64) -> P3 {
         self.orig + t * self.dir
     }
 

@@ -6,7 +6,7 @@ use std::ops::{
 
 const NEAR_ZERO: f64 = 1e-8;
 
-pub type Point3 = V3;
+pub type P3 = V3;
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct V3 {
