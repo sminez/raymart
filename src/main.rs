@@ -23,8 +23,8 @@ fn main() {
     // Materials
     let m_ground = Material::lambertian(Color::new(0.8, 0.8, 0.0));
     let m_center = Material::lambertian(Color::new(0.1, 0.2, 0.5));
-    let m_left = Material::metal(Color::new(0.8, 0.8, 0.8), 0.001);
-    let m_right = Material::metal(Color::new(0.8, 0.6, 0.2), 0.3);
+    let m_left = Material::dielectric(1.0 / 1.33);
+    let m_right = Material::metal(Color::new(0.8, 0.6, 0.2), 0.03);
 
     let mut world = HittableList::default();
     world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0, m_ground));

@@ -4,6 +4,7 @@ use crate::{Color, HitRecord, Ray, V3};
 pub enum Material {
     Lambertian { albedo: Color },
     Metal { albedo: Color, fuzz: f64 },
+    Dielectric { ref_index: f64 },
 }
 
 impl Material {
@@ -17,10 +18,15 @@ impl Material {
         Self::Metal { albedo, fuzz }
     }
 
+    pub fn dielectric(ref_index: f64) -> Material {
+        Self::Dielectric { ref_index }
+    }
+
     pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         match self {
             Self::Lambertian { albedo } => lambertian_scatter(albedo, rec),
             Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, rec),
+            Self::Dielectric { ref_index } => dielectric_scatter(*ref_index, r_in, rec),
         }
     }
 }
@@ -44,4 +50,25 @@ fn metal_scatter(albedo: &Color, fuzz: f64, r_in: &Ray, rec: &HitRecord) -> Opti
     } else {
         None
     }
+}
+
+fn dielectric_scatter(ref_index: f64, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
+    let ri = if rec.front_face {
+        1.0 / ref_index
+    } else {
+        ref_index
+    };
+    let unit_dir = r_in.dir.unit_vector();
+
+    let cos_theta = (-unit_dir.dot(&rec.normal)).min(1.0);
+    let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
+    let cannot_refract = ri * sin_theta > 1.0;
+
+    let direction = if cannot_refract {
+        unit_dir.reflect(rec.normal)
+    } else {
+        unit_dir.refract(rec.normal, ri)
+    };
+
+    Some((Ray::new(rec.p, direction), Color::new(1.0, 1.0, 1.0)))
 }

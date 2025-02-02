@@ -51,6 +51,14 @@ impl V3 {
         *self - 2.0 * self.dot(&normal) * normal
     }
 
+    pub fn refract(&self, normal: V3, etai_over_etat: f64) -> V3 {
+        let cos_theta = (-self.dot(&normal)).min(1.0);
+        let r_out_perp = etai_over_etat * (*self + cos_theta * normal);
+        let r_out_para = -(1.0 - r_out_perp.square_length()).sqrt() * normal;
+
+        r_out_perp + r_out_para
+    }
+
     pub const fn dot(&self, rhs: &V3) -> f64 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
