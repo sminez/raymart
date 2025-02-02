@@ -1,13 +1,15 @@
 pub mod color;
+pub mod hit;
 pub mod ray;
 pub mod v3;
 
 use color::Color;
+use hit::{HittableList, Sphere};
 use ray::Ray;
 use v3::{Point3, V3};
 
 const ASPECT_RATIO: f64 = 16.0 / 9.0;
-const IMAGE_WIDTH: u16 = 400;
+const IMAGE_WIDTH: u16 = 800;
 const IMAGE_HEIGHT: u16 = calculate_image_height();
 
 const FOCAL_LENGTH: f64 = 1.0;
@@ -25,6 +27,12 @@ const fn calculate_image_height() -> u16 {
 }
 
 fn main() {
+    // World
+    let mut world = HittableList::default();
+    world.add(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5));
+    world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0));
+
+    // Camera
     let camera_center = Point3::new(0.0, 0.0, 0.0);
 
     // Calculate the vectors across the horizontal and down the vertical viewport edges.
@@ -55,18 +63,11 @@ fn main() {
     for j in 0..IMAGE_HEIGHT {
         eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j);
         for i in 0..IMAGE_WIDTH {
-            // let c = Color::new(
-            //     i as f64 / IMAGE_WIDTH as f64,
-            //     j as f64 / IMAGE_HEIGHT as f64,
-            //     0.0,
-            // );
-            // c.print_ppm();
-
             let pixel_center =
                 pixel_100_loc + (i as f64 * pixel_delta_u) + (j as f64 * pixel_delta_v);
             let ray_direction = pixel_center - camera_center;
             let ray = Ray::new(camera_center, ray_direction);
-            ray.color().print_ppm();
+            ray.color(&world).print_ppm();
         }
     }
 
