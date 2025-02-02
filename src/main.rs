@@ -15,12 +15,12 @@ use v3::{P3, V3};
 
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1600; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 800; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 80; // maximum number of ray bounces allowed
+pub const SAMPLES_PER_PIXEL: u16 = 10; // number of random samples per pixel
+pub const MAX_BOUNCES: u8 = 5; // maximum number of ray bounces allowed
 
 fn main() {
-    // let (world, camera) = random_ballscape();
-    let (world, camera) = composed();
+    let (world, camera) = random_ballscape();
+    // let (world, camera) = composed();
 
     eprintln!("{camera:#?}");
     eprintln!("Rendering...");
@@ -104,7 +104,11 @@ pub fn random_ballscape() -> (HittableList, Camera) {
             if (center - P3::new(2.0, 0.2, 0.0)).length() > 0.9 {
                 let mat = if k < 0.8 {
                     let albedo = Color::random(0.0, 1.0) * Color::random(0.0, 1.0);
-                    Material::lambertian(albedo)
+                    let mat = Material::lambertian(albedo);
+                    let center2 = center + V3::new(0.0, random_range(0.0..0.5), 0.0);
+
+                    world.add(Sphere::new_moving(center, center2, 0.2, mat));
+                    continue;
                 } else if k < 0.9 {
                     let albedo = Color::random(0.5, 1.0);
                     let fuzz = random_range(0.1..0.5);

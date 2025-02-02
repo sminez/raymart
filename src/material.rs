@@ -25,26 +25,26 @@ impl Material {
 
     pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         match self {
-            Self::Lambertian { albedo } => lambertian_scatter(albedo, rec),
+            Self::Lambertian { albedo } => lambertian_scatter(albedo, r_in, rec),
             Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, rec),
             Self::Dielectric { ref_index } => dielectric_scatter(*ref_index, r_in, rec),
         }
     }
 }
 
-fn lambertian_scatter(albedo: &Color, rec: &HitRecord) -> Option<(Ray, Color)> {
+fn lambertian_scatter(albedo: &Color, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
     let mut scatter_direction = rec.normal + V3::random_unit_vector();
     if scatter_direction.near_zero() {
         scatter_direction = rec.normal;
     }
-    let scattered = Ray::new(rec.p, scatter_direction);
+    let scattered = Ray::new(rec.p, scatter_direction, r_in.time);
 
     Some((scattered, *albedo))
 }
 
 fn metal_scatter(albedo: &Color, fuzz: f64, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
     let reflected = r_in.dir.reflect(rec.normal).unit_vector() + (fuzz * V3::random_unit_vector());
-    let scattered = Ray::new(rec.p, reflected);
+    let scattered = Ray::new(rec.p, reflected, r_in.time);
 
     if scattered.dir.dot(&rec.normal) > 0.0 {
         Some((scattered, *albedo))
@@ -71,7 +71,10 @@ fn dielectric_scatter(ref_index: f64, r_in: &Ray, rec: &HitRecord) -> Option<(Ra
         unit_dir.refract(rec.normal, ri)
     };
 
-    Some((Ray::new(rec.p, direction), Color::new(1.0, 1.0, 1.0)))
+    Some((
+        Ray::new(rec.p, direction, r_in.time),
+        Color::new(1.0, 1.0, 1.0),
+    ))
 }
 
 /// Use Schlick's approximation for reflectance.

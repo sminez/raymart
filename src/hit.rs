@@ -120,7 +120,7 @@ impl Hittable for HittableList {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sphere {
-    center: P3,
+    center: Ray,
     radius: f64,
     radius_sq: f64,
     mat: Material,
@@ -131,7 +131,18 @@ impl Sphere {
         let r = radius.max(0.0);
 
         Self {
-            center,
+            center: Ray::new(center, V3::default(), 0.0),
+            radius: r,
+            radius_sq: r * r,
+            mat,
+        }
+    }
+
+    pub fn new_moving(center1: P3, center2: P3, radius: f64, mat: Material) -> Self {
+        let r = radius.max(0.0);
+
+        Self {
+            center: Ray::new(center1, center2 - center1, 0.0),
             radius: r,
             radius_sq: r * r,
             mat,
@@ -143,7 +154,8 @@ impl Hittable for Sphere {
     /// The derivation of the calculation here is given in section 5 of Ray tracing in one weekend
     /// https://raytracing.github.io/books/RayTracingInOneWeekend.html
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        let oc = self.center - r.orig;
+        let current_center = self.center.at(r.time);
+        let oc = current_center - r.orig;
 
         let a = r.dir.square_length();
         let h = r.dir.dot(&oc);
@@ -166,7 +178,7 @@ impl Hittable for Sphere {
         }
 
         let p = r.at(root);
-        let outward_normal = (p - self.center) / self.radius;
+        let outward_normal = (p - current_center) / self.radius;
 
         Some(HitRecord::new(root, p, outward_normal, r, self.mat))
     }

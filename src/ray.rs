@@ -119,8 +119,9 @@ impl Camera {
         } else {
             self.defocus_disk_sample()
         };
+        let ray_time = random_range(0.0..1.0);
 
-        Ray::new(self.center, sample - ray_origin)
+        Ray::new(self.center, sample - ray_origin, ray_time)
     }
 
     // Returns a random point in the camera defocus disk.
@@ -131,14 +132,16 @@ impl Camera {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Ray {
     pub orig: P3,
     pub dir: V3,
+    pub time: f64,
 }
 
 impl Ray {
-    pub const fn new(orig: P3, dir: V3) -> Self {
-        Self { orig, dir }
+    pub const fn new(orig: P3, dir: V3, time: f64) -> Self {
+        Self { orig, dir, time }
     }
 
     pub fn at(&self, t: f64) -> P3 {
