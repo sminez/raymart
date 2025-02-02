@@ -90,14 +90,16 @@ impl Camera {
         let lines: Vec<String> = (0..self.image_height)
             .into_par_iter()
             .flat_map(move |j| {
-                (0..self.image_width).into_par_iter().map(move |i| {
+                let res = (0..self.image_width).into_par_iter().map(move |i| {
                     let color = (0..self.samples_pp)
                         .into_par_iter()
                         .map(|_| self.get_ray(i, j).color(self.max_bounces, world))
                         .reduce(Color::default, |a, b| a + b);
 
                     (color * self.pixel_sample_scale).ppm_string()
-                })
+                });
+                eprint!(".");
+                res
             })
             .collect();
 
