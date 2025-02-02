@@ -106,8 +106,10 @@ impl Ray {
         }
 
         if let Some(hit_record) = world.hits(self, Interval::new(0.001, f64::INFINITY)) {
-            let v = hit_record.normal + V3::random_unit_vector();
-            return 0.5 * Ray::new(hit_record.p, v).color(depth - 1, world);
+            return match hit_record.mat.scatter(self, &hit_record) {
+                Some((scattered, attenuation)) => attenuation * scattered.color(depth - 1, world),
+                None => Color::default(),
+            };
         }
 
         let unit_dir = self.dir.unit_vector();

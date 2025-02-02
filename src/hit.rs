@@ -1,4 +1,4 @@
-use crate::{Point3, Ray, V3};
+use crate::{material::Material, Point3, Ray, V3};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Interval {
@@ -43,16 +43,17 @@ impl Interval {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct HitRecord {
     pub t: f64,
     pub p: Point3,
     pub normal: V3,
     pub front_face: bool,
+    pub mat: Material,
 }
 
 impl HitRecord {
-    pub fn new(t: f64, p: Point3, outward_normal: V3, r: &Ray) -> Self {
+    pub fn new(t: f64, p: Point3, outward_normal: V3, r: &Ray, mat: Material) -> Self {
         let front_face = r.dir.dot(&outward_normal) < 0.0;
         let normal = if front_face {
             outward_normal
@@ -65,6 +66,7 @@ impl HitRecord {
             p,
             normal,
             front_face,
+            mat,
         }
     }
 
@@ -121,16 +123,18 @@ pub struct Sphere {
     center: Point3,
     radius: f64,
     radius_sq: f64,
+    mat: Material,
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: f64) -> Self {
+    pub fn new(center: Point3, radius: f64, mat: Material) -> Self {
         let r = radius.max(0.0);
 
         Self {
             center,
             radius: r,
             radius_sq: r * r,
+            mat,
         }
     }
 }
@@ -164,6 +168,6 @@ impl Hittable for Sphere {
         let p = r.at(root);
         let outward_normal = (p - self.center) / self.radius;
 
-        Some(HitRecord::new(root, p, outward_normal, r))
+        Some(HitRecord::new(root, p, outward_normal, r, self.mat))
     }
 }

@@ -4,6 +4,8 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
+const NEAR_ZERO: f64 = 1e-8;
+
 pub type Point3 = V3;
 
 #[derive(Debug, Default, Copy, Clone)]
@@ -45,6 +47,10 @@ impl V3 {
         }
     }
 
+    pub fn reflect(&self, normal: V3) -> V3 {
+        *self - 2.0 * self.dot(&normal) * normal
+    }
+
     pub const fn dot(&self, rhs: &V3) -> f64 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
@@ -67,6 +73,10 @@ impl V3 {
 
     pub fn unit_vector(&self) -> V3 {
         *self / self.length()
+    }
+
+    pub fn near_zero(&self) -> bool {
+        self.x.abs() < NEAR_ZERO && self.y.abs() < NEAR_ZERO && self.z.abs() < NEAR_ZERO
     }
 }
 
