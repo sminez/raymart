@@ -62,10 +62,7 @@ impl Camera {
                 (0..self.image_width).into_par_iter().map(move |i| {
                     let color = (0..self.samples_pp)
                         .into_par_iter()
-                        .map(|_| {
-                            let r = self.get_ray(i, j);
-                            self.ray_color(&r, self.max_bounces, world)
-                        })
+                        .map(|_| self.get_ray(i, j).color(self.max_bounces, world))
                         .reduce(Color::default, |a, b| a + b);
 
                     (color * self.pixel_sample_scale).ppm_string()
@@ -87,22 +84,6 @@ impl Camera {
 
         Ray::new(self.center, sample - self.center)
     }
-
-    fn ray_color(&self, r: &Ray, depth: u8, world: &impl Hittable) -> Color {
-        if depth == 0 {
-            return Color::default();
-        }
-
-        if let Some(hit_record) = world.hits(r, Interval::new(0.0, f64::INFINITY)) {
-            let v = V3::random_on_hemisphere(&hit_record.normal);
-            return 0.5 * self.ray_color(&Ray::new(hit_record.p, v), depth - 1, world);
-        }
-
-        let unit_dir = r.dir.unit_vector();
-        let a = 0.5 * (unit_dir.y + 1.0);
-
-        (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
-    }
 }
 
 pub struct Ray {
@@ -117,5 +98,21 @@ impl Ray {
 
     pub fn at(&self, t: f64) -> Point3 {
         self.orig + t * self.dir
+    }
+
+    fn color(&self, depth: u8, world: &impl Hittable) -> Color {
+        if depth == 0 {
+            return Color::default();
+        }
+
+        if let Some(hit_record) = world.hits(self, Interval::new(0.001, f64::INFINITY)) {
+            let v = V3::random_on_hemisphere(&hit_record.normal);
+            return 0.5 * Ray::new(hit_record.p, v).color(depth - 1, world);
+        }
+
+        let unit_dir = self.dir.unit_vector();
+        let a = 0.5 * (unit_dir.y + 1.0);
+
+        (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
     }
 }
