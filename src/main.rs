@@ -15,13 +15,14 @@ pub const IMAGE_WIDTH: u16 = 800;
 pub const FOCAL_LENGTH: f64 = 1.0;
 pub const VIEWPORT_HEIGHT: f64 = 2.0;
 pub const SAMPLES_PER_PIXEL: u8 = 100;
+pub const MAX_BOUNCES: u8 = 50;
 
 fn main() {
     let mut world = HittableList::default();
     world.add(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5));
     world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0));
 
-    let camera = Camera::new(ASPECT_RATIO, IMAGE_WIDTH, SAMPLES_PER_PIXEL);
+    let camera = Camera::new(ASPECT_RATIO, IMAGE_WIDTH, SAMPLES_PER_PIXEL, MAX_BOUNCES);
     eprintln!("{camera:#?}");
     eprintln!("Rendering...");
     camera.render_ppm(&mut stdout(), &world);

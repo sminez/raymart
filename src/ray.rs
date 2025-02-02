@@ -12,6 +12,7 @@ pub struct Camera {
     image_width: u16,        // rendered image width (pixels)
     image_height: u16,       // rendered image height (pixels)
     samples_pp: u8,          // number of random samples per pixel
+    max_bounces: u8,         // maximum number of ray bounces allowed
     center: Point3,          // camera center
     pixel_origin: Point3,    // location of pixel 0,0
     pixel_delta_u: V3,       // offset to pixel to the right
@@ -20,7 +21,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(aspect_ratio: f64, image_width: u16, samples_pp: u8) -> Self {
+    pub fn new(aspect_ratio: f64, image_width: u16, samples_pp: u8, max_bounces: u8) -> Self {
         let image_height = max(1, (image_width as f64 / aspect_ratio) as u16);
         let center = Point3::new(0.0, 0.0, 0.0);
         let pixel_sample_scale = 1.0 / samples_pp as f64;
@@ -41,6 +42,7 @@ impl Camera {
             image_width,
             image_height,
             samples_pp,
+            max_bounces,
             center,
             pixel_origin,
             pixel_delta_u,
@@ -62,7 +64,7 @@ impl Camera {
                         .into_par_iter()
                         .map(|_| {
                             let r = self.get_ray(i, j);
-                            self.ray_color(&r, world)
+                            self.ray_color(&r, self.max_bounces, world)
                         })
                         .reduce(Color::default, |a, b| a + b);
 
@@ -86,11 +88,14 @@ impl Camera {
         Ray::new(self.center, sample - self.center)
     }
 
-    fn ray_color(&self, r: &Ray, world: &impl Hittable) -> Color {
+    fn ray_color(&self, r: &Ray, depth: u8, world: &impl Hittable) -> Color {
+        if depth == 0 {
+            return Color::default();
+        }
+
         if let Some(hit_record) = world.hits(r, Interval::new(0.0, f64::INFINITY)) {
             let v = V3::random_on_hemisphere(&hit_record.normal);
-            return 0.5 * self.ray_color(&Ray::new(hit_record.p, v), world);
-            // return 0.5 * (hit_record.normal + Color::new(1.0, 1.0, 1.0));
+            return 0.5 * self.ray_color(&Ray::new(hit_record.p, v), depth - 1, world);
         }
 
         let unit_dir = r.dir.unit_vector();
