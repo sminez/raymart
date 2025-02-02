@@ -1,5 +1,5 @@
 use crate::{
-    hit::Hittable,
+    hit::{Hittable, Interval},
     v3::{Point3, V3},
     Color,
 };
@@ -19,7 +19,7 @@ impl Ray {
     }
 
     pub fn color(&self, world: &impl Hittable) -> Color {
-        if let Some(hit_record) = world.hits(self, 0.0, f64::INFINITY) {
+        if let Some(hit_record) = world.hits(self, Interval::new(0.0, f64::INFINITY)) {
             return 0.5 * (hit_record.normal + Color::new(1.0, 1.0, 1.0));
         }
 

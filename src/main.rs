@@ -61,7 +61,8 @@ fn main() {
     println!("P3\n{IMAGE_WIDTH} {IMAGE_HEIGHT}\n255");
 
     for j in 0..IMAGE_HEIGHT {
-        eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j);
+        // eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j);
+        eprint!(".");
         for i in 0..IMAGE_WIDTH {
             let pixel_center =
                 pixel_100_loc + (i as f64 * pixel_delta_u) + (j as f64 * pixel_delta_v);
@@ -71,5 +72,5 @@ fn main() {
         }
     }
 
-    eprintln!("Done");
+    eprintln!("\nDone");
 }

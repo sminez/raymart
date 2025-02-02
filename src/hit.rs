@@ -1,5 +1,38 @@
 use crate::{Point3, Ray, V3};
 
+#[derive(Debug, Clone, Copy)]
+pub struct Interval {
+    pub min: f64,
+    pub max: f64,
+}
+
+impl Default for Interval {
+    fn default() -> Self {
+        Interval::EMPTY
+    }
+}
+
+impl Interval {
+    pub const EMPTY: Interval = Interval::new(f64::INFINITY, -f64::INFINITY);
+    pub const UNIVERSE: Interval = Interval::new(-f64::INFINITY, f64::INFINITY);
+
+    pub const fn new(min: f64, max: f64) -> Self {
+        Self { min, max }
+    }
+
+    pub const fn size(&self) -> f64 {
+        self.max - self.min
+    }
+
+    pub const fn contains(&self, x: f64) -> bool {
+        self.min <= x && x <= self.max
+    }
+
+    pub const fn surrounds(&self, x: f64) -> bool {
+        self.min < x && x < self.max
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct HitRecord {
     pub t: f64,
@@ -39,7 +72,7 @@ impl HitRecord {
 }
 
 pub trait Hittable {
-    fn hits(&self, r: &Ray, tmin: f64, tmax: f64) -> Option<HitRecord>;
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
 }
 
 #[derive(Default)]
@@ -58,12 +91,12 @@ impl HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hits(&self, r: &Ray, tmin: f64, tmax: f64) -> Option<HitRecord> {
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         let mut rec: Option<HitRecord> = None;
-        let mut closest_so_far = tmax;
+        let mut closest_so_far = ray_t.max;
 
         for obj in self.objects.iter() {
-            if let Some(obj_rec) = obj.hits(r, tmin, closest_so_far) {
+            if let Some(obj_rec) = obj.hits(r, Interval::new(ray_t.min, closest_so_far)) {
                 closest_so_far = obj_rec.t;
                 rec = Some(obj_rec);
             }
@@ -95,7 +128,7 @@ impl Sphere {
 impl Hittable for Sphere {
     /// The derivation of the calculation here is given in section 5 of Ray tracing in one weekend
     /// https://raytracing.github.io/books/RayTracingInOneWeekend.html
-    fn hits(&self, r: &Ray, tmin: f64, tmax: f64) -> Option<HitRecord> {
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         let oc = self.center - r.orig;
 
         let a = r.dir.square_length();
@@ -111,9 +144,9 @@ impl Hittable for Sphere {
 
         // Find the nearest root that lies between tmin & tmax
         let mut root = (h - sqrt_disc) / a;
-        if root <= tmin || tmax < root {
+        if !ray_t.surrounds(root) {
             root = (h + sqrt_disc) / a;
-            if root <= tmin || tmax < root {
+            if !ray_t.surrounds(root) {
                 return None;
             }
         }
