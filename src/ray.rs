@@ -11,42 +11,40 @@ use std::{cmp::max, io::Write};
 pub struct Camera {
     image_width: u16,        // rendered image width (pixels)
     image_height: u16,       // rendered image height (pixels)
-    samples_pp: u8,          // number of random samples per pixel
+    samples_pp: u16,         // number of random samples per pixel
     max_bounces: u8,         // maximum number of ray bounces allowed
     center: P3,              // camera center
     pixel_origin: P3,        // location of pixel 0,0
     pixel_delta_u: V3,       // offset to pixel to the right
     pixel_delta_v: V3,       // offset to pixel below
     pixel_sample_scale: f64, // color scale factor for a sum of pixel samples
+    defocus_angle: f64,
+    defocus_disk_u: V3, // defocus disk horizontal radius
+    defocus_disk_v: V3, // defocus disk vertical radius
 }
-// look_from: P3,           // the point that the camera is looking from
-// look_at: P3,             // the point that the camera is looking to
-// v_up: V3,                // the camera-relative "up" direction
-// u: V3,                   // camera frame basis vector (x)
-// v: V3,                   // camera frame basis vector (y)
-// w: V3,                   // camera frame basis vector (z)
 
 impl Camera {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         aspect_ratio: f64,
         image_width: u16,
-        samples_pp: u8,
+        samples_pp: u16,
         max_bounces: u8,
         vfov: f64,
         look_from: P3,
         look_at: P3,
         v_up: V3,
+        defocus_angle: f64,
+        focus_dist: f64,
     ) -> Self {
         let image_height = max(1, (image_width as f64 / aspect_ratio) as u16);
         let center = look_from;
         let pixel_sample_scale = 1.0 / samples_pp as f64;
 
         // viewport dimensions
-        let focal_length = (look_from - look_at).length();
         let theta = vfov.to_radians();
         let h = (theta / 2.0).tan();
-        let viewport_height = 2.0 * h * focal_length;
+        let viewport_height = 2.0 * h * focus_dist;
         let viewport_width = viewport_height * (image_width as f64 / image_height as f64);
 
         // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
@@ -60,8 +58,13 @@ impl Camera {
         let pixel_delta_v = viewport_v / image_height as f64;
 
         // Calculate the location of the upper left pixel.
-        let viewport_upper_left = center - (focal_length * w) - viewport_u / 2.0 - viewport_v / 2.0;
+        let viewport_upper_left = center - (focus_dist * w) - viewport_u / 2.0 - viewport_v / 2.0;
         let pixel_origin = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+
+        // Calculate the camera defocus disk basis vectors.
+        let defocus_radius = focus_dist * (defocus_angle / 2.0).to_radians().tan();
+        let defocus_disk_u = u * defocus_radius;
+        let defocus_disk_v = v * defocus_radius;
 
         Self {
             image_width,
@@ -73,12 +76,9 @@ impl Camera {
             pixel_delta_u,
             pixel_delta_v,
             pixel_sample_scale,
-            // look_from,
-            // look_at,
-            // v_up,
-            // v,
-            // u,
-            // w,
+            defocus_angle,
+            defocus_disk_u,
+            defocus_disk_v,
         }
     }
 
@@ -104,16 +104,28 @@ impl Camera {
         writeln!(w, "{}", lines.join("\n")).unwrap();
     }
 
-    /// Construct a camera ray originating from the origin and directed at randomly sampled
-    /// point around the pixel location i, j.
+    /// Construct a camera ray originating from the defocus disk and directed at a randomly
+    /// sampled point around the pixel location i, j.
     fn get_ray(&self, i: u16, j: u16) -> Ray {
         // Vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square
         let offset = V3::new(random_range(-0.5..0.5), random_range(-0.5..0.5), 0.0);
         let sample = self.pixel_origin
             + ((i as f64 + offset.x) * self.pixel_delta_u)
             + ((j as f64 + offset.y) * self.pixel_delta_v);
+        let ray_origin = if self.defocus_angle <= 0.0 {
+            self.center
+        } else {
+            self.defocus_disk_sample()
+        };
 
-        Ray::new(self.center, sample - self.center)
+        Ray::new(self.center, sample - ray_origin)
+    }
+
+    // Returns a random point in the camera defocus disk.
+    fn defocus_disk_sample(&self) -> P3 {
+        let p = V3::random_in_unit_disk();
+
+        self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
     }
 }
 

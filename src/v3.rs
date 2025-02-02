@@ -47,6 +47,15 @@ impl V3 {
         }
     }
 
+    pub fn random_in_unit_disk() -> V3 {
+        loop {
+            let p = V3::new(random_range(-1.0..1.0), random_range(-1.0..1.0), 0.0);
+            if p.square_length() < 1.0 {
+                return p;
+            }
+        }
+    }
+
     pub fn reflect(&self, normal: V3) -> V3 {
         *self - 2.0 * self.dot(&normal) * normal
     }
