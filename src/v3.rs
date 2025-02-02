@@ -3,6 +3,8 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
+pub type Point3 = V3;
+
 #[derive(Debug, Default, Copy, Clone)]
 pub struct V3 {
     pub x: f64,
@@ -11,15 +13,15 @@ pub struct V3 {
 }
 
 impl V3 {
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
+    pub const fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
     }
 
-    pub fn dot(&self, rhs: &V3) -> f64 {
-        self.x * rhs.x + self.y * rhs.y + self.z * rhs.y
+    pub const fn dot(&self, rhs: &V3) -> f64 {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
 
-    pub fn cross(&self, rhs: &V3) -> V3 {
+    pub const fn cross(&self, rhs: &V3) -> V3 {
         Self::new(
             self.y * rhs.z - self.z * rhs.y,
             self.z * rhs.x - self.x * rhs.z,
@@ -31,7 +33,7 @@ impl V3 {
         self.square_length().sqrt()
     }
 
-    pub fn square_length(&self) -> f64 {
+    pub const fn square_length(&self) -> f64 {
         self.dot(self)
     }
 
@@ -88,6 +90,15 @@ impl Mul<f64> for V3 {
     }
 }
 
+impl Mul<V3> for f64 {
+    type Output = V3;
+
+    fn mul(self, rhs: V3) -> Self::Output {
+        rhs * self
+    }
+}
+
+// This is odd...really this should be the full product so what is this used for???
 impl Mul<V3> for V3 {
     type Output = V3;
 
@@ -108,7 +119,7 @@ impl Div<f64> for V3 {
     type Output = V3;
 
     fn div(self, rhs: f64) -> Self::Output {
-        Self::new(self.x / rhs, self.y / rhs, self.z / rhs)
+        self * (1.0 / rhs)
     }
 }
 
