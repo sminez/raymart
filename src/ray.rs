@@ -1,7 +1,7 @@
 use crate::{
     hit::{Hittable, Interval},
     v3::{Point3, V3},
-    Color, FOCAL_LENGTH, VIEWPORT_HEIGHT,
+    Color, FOCAL_LENGTH,
 };
 use rand::random_range;
 use rayon::prelude::*;
@@ -21,15 +21,24 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(aspect_ratio: f64, image_width: u16, samples_pp: u8, max_bounces: u8) -> Self {
+    pub fn new(
+        aspect_ratio: f64,
+        image_width: u16,
+        samples_pp: u8,
+        max_bounces: u8,
+        vfov: f64,
+    ) -> Self {
         let image_height = max(1, (image_width as f64 / aspect_ratio) as u16);
         let center = Point3::new(0.0, 0.0, 0.0);
         let pixel_sample_scale = 1.0 / samples_pp as f64;
 
         // viewport dimensions
-        let viewport_width = VIEWPORT_HEIGHT * (image_width as f64 / image_height as f64);
+        let theta = vfov.to_radians();
+        let h = (theta / 2.0).tan();
+        let viewport_height = 2.0 * h * FOCAL_LENGTH;
+        let viewport_width = viewport_height * (image_width as f64 / image_height as f64);
         let viewport_u = V3::new(viewport_width, 0.0, 0.0);
-        let viewport_v = V3::new(0.0, -VIEWPORT_HEIGHT, 0.0);
+        let viewport_v = V3::new(0.0, -viewport_height, 0.0);
         let pixel_delta_u = viewport_u / image_width as f64;
         let pixel_delta_v = viewport_v / image_height as f64;
 

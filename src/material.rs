@@ -1,4 +1,5 @@
 use crate::{Color, HitRecord, Ray, V3};
+use rand::random_range;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Material {
@@ -64,11 +65,19 @@ fn dielectric_scatter(ref_index: f64, r_in: &Ray, rec: &HitRecord) -> Option<(Ra
     let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
     let cannot_refract = ri * sin_theta > 1.0;
 
-    let direction = if cannot_refract {
+    let direction = if cannot_refract || reflectance(cos_theta, ri) > random_range(0.0..1.0) {
         unit_dir.reflect(rec.normal)
     } else {
         unit_dir.refract(rec.normal, ri)
     };
 
     Some((Ray::new(rec.p, direction), Color::new(1.0, 1.0, 1.0)))
+}
+
+/// Use Schlick's approximation for reflectance.
+fn reflectance(cosine: f64, ref_index: f64) -> f64 {
+    let r0 = (1.0 - ref_index) / (1.0 + ref_index);
+    let r0_sq = r0 * r0;
+
+    r0_sq + (1.0 - r0_sq) * (1.0 - cosine).powi(5)
 }
