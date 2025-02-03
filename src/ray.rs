@@ -1,5 +1,6 @@
 use crate::{
-    hit::{Hittable, Interval},
+    bbox::BvhNode,
+    hit::Interval,
     v3::{P3, V3},
     Color,
 };
@@ -82,7 +83,7 @@ impl Camera {
         }
     }
 
-    pub fn render_ppm(&self, w: &mut impl Write, world: &impl Hittable) {
+    pub fn render_ppm(&self, w: &mut impl Write, world: &BvhNode) {
         if let Err(e) = writeln!(w, "P3\n{} {}\n255", self.image_width, self.image_height) {
             panic!("unable to write ppm header: {e}");
         }
@@ -148,7 +149,7 @@ impl Ray {
         self.orig + t * self.dir
     }
 
-    fn color(&self, depth: u8, world: &impl Hittable) -> Color {
+    fn color(&self, depth: u8, world: &BvhNode) -> Color {
         if depth == 0 {
             return Color::default();
         }

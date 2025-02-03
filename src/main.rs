@@ -5,13 +5,13 @@ pub mod material;
 pub mod ray;
 pub mod v3;
 
+use rand::random_range;
 use std::io::stdout;
 
 use bbox::BvhNode;
 use color::Color;
-use hit::{HitRecord, HittableList, Sphere};
+use hit::{HitRecord, Hittable, Sphere};
 use material::Material;
-use rand::random_range;
 use ray::{Camera, Ray};
 use v3::{P3, V3};
 
@@ -21,17 +21,16 @@ pub const SAMPLES_PER_PIXEL: u16 = 500; // number of random samples per pixel
 pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
 
 fn main() {
-    // let (world, camera) = random_ballscape();
-    let (world, camera) = composed();
+    // let (hittables, camera) = random_ballscape();
+    let (hittables, camera) = composed();
 
-    eprintln!("{camera:#?}");
     eprintln!("Computing bvh tree...");
     // There is definitely a break even point in terms of the number of number of hittables
     // in the scene and the utility of the bvh_tree in terms of the overhead from checking
     // hits against the bounding boxes.
     // It's probably worth defining a heuristic to check against the resulting tree to see
     // if it is worthwhile using it or not.
-    let bvh_tree = BvhNode::new_from_hittable_list(&world);
+    let bvh_tree = BvhNode::new_from_hittables(hittables);
 
     eprintln!("Rendering...");
     camera.render_ppm(&mut stdout(), &bvh_tree);
@@ -39,45 +38,39 @@ fn main() {
     eprintln!("\nDone");
 }
 
-pub fn composed() -> (HittableList, Camera) {
-    let mut world = HittableList::default();
+pub fn composed() -> (Vec<Hittable>, Camera) {
+    let mut hittables = Vec::default();
 
     let m_ground = Material::lambertian(Color::new(0.5, 0.8, 0.2));
-    world.add(Sphere::new(P3::new(0.0, -100.5, -1.0), 100.0, m_ground));
+    hittables.push(Sphere::new(P3::new(0.0, -100.5, -1.0), 100.0, m_ground).into());
 
     let matte = Material::lambertian(Color::new(0.95, 0.15, 0.25));
     let glass = Material::dielectric(1.33);
     let air = Material::dielectric(1.0 / 1.33);
     let gold = Material::metal(Color::new(0.8, 0.6, 0.2), 0.02);
 
-    world.add(Sphere::new(P3::new(0.0, 0.0, -1.0), 0.48, matte));
-    world.add(Sphere::new(P3::new(0.0, 0.0, -1.0), 0.50, glass));
+    hittables.push(Sphere::new(P3::new(0.0, 0.0, -1.0), 0.48, matte).into());
+    hittables.push(Sphere::new(P3::new(0.0, 0.0, -1.0), 0.50, glass).into());
 
-    world.add(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.48, glass));
-    world.add(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.45, air));
-    world.add(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.42, glass));
-    world.add(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.39, gold));
+    hittables.push(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.48, glass).into());
+    hittables.push(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.45, air).into());
+    hittables.push(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.42, glass).into());
+    hittables.push(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.39, gold).into());
 
-    world.add(Sphere::new(P3::new(1.0, 0.0, -1.0), 0.48, gold));
+    hittables.push(Sphere::new(P3::new(1.0, 0.0, -1.0), 0.48, gold).into());
 
-    world.add(Sphere::new(P3::new(0.4, -0.31, 1.0), 0.22, glass));
-    world.add(Sphere::new(P3::new(-0.4, -0.3, 1.0), 0.2, gold));
+    hittables.push(Sphere::new(P3::new(0.4, -0.31, 1.0), 0.22, glass).into());
+    hittables.push(Sphere::new(P3::new(-0.4, -0.3, 1.0), 0.2, gold).into());
 
-    world.add(Sphere::new(P3::new(-0.7, -0.42, 1.2), 0.1, matte));
-    world.add(Sphere::new(P3::new(-0.1, -0.43, 1.6), 0.1, matte));
-    world.add(Sphere::new(P3::new(0.6, -0.44, 1.9), 0.1, matte));
+    hittables.push(Sphere::new(P3::new(-0.7, -0.42, 1.2), 0.1, matte).into());
+    hittables.push(Sphere::new(P3::new(-0.1, -0.43, 1.6), 0.1, matte).into());
+    hittables.push(Sphere::new(P3::new(0.6, -0.44, 1.9), 0.1, matte).into());
 
-    // vertical field of view in degrees
     let vertical_fov: f64 = 10.0;
-    // the point that the camera is looking from
     let look_from: P3 = P3::new(0.0, 1.0, 11.0);
-    // the point that the camera is looking to
     let look_at: P3 = P3::new(0.0, 0.0, 0.0);
-    // the camera-relative "up" direction
     let v_up: V3 = V3::new(0.0, 1.0, 0.0);
-    // variation angle of rays through each pixel
     let defocus_angle: f64 = 0.0;
-    // distance from camera lookfrom point to plane of perfect focus
     let focus_dist: f64 = 10.0;
 
     let camera = Camera::new(
@@ -93,15 +86,15 @@ pub fn composed() -> (HittableList, Camera) {
         focus_dist,
     );
 
-    (world, camera)
+    (hittables, camera)
 }
 
 /// The final image from "Ray tracing in one weekend"
-pub fn random_ballscape() -> (HittableList, Camera) {
-    let mut world = HittableList::default();
+pub fn random_ballscape() -> (Vec<Hittable>, Camera) {
+    let mut hittables = Vec::default();
 
     let m_ground = Material::lambertian(Color::new(0.5, 0.5, 0.5));
-    world.add(Sphere::new(P3::new(0.0, -1000.0, -1.0), 1000.0, m_ground));
+    hittables.push(Sphere::new(P3::new(0.0, -1000.0, -1.0), 1000.0, m_ground).into());
 
     for a in -11..11 {
         for b in -11..11 {
@@ -118,7 +111,7 @@ pub fn random_ballscape() -> (HittableList, Camera) {
                     let mat = Material::lambertian(albedo);
                     let center2 = center + V3::new(0.0, random_range(0.0..0.5), 0.0);
 
-                    world.add(Sphere::new_moving(center, center2, 0.2, mat));
+                    hittables.push(Sphere::new_moving(center, center2, 0.2, mat).into());
                     continue;
                 } else if k < 0.9 {
                     let albedo = Color::random(0.5, 1.0);
@@ -128,7 +121,7 @@ pub fn random_ballscape() -> (HittableList, Camera) {
                     Material::dielectric(1.5)
                 };
 
-                world.add(Sphere::new(center, 0.2, mat));
+                hittables.push(Sphere::new(center, 0.2, mat).into());
             }
         }
     }
@@ -138,22 +131,16 @@ pub fn random_ballscape() -> (HittableList, Camera) {
     let m_bubble = Material::dielectric(1.0 / 1.5);
     let m_right = Material::metal(Color::new(0.8, 0.6, 0.2), 0.02);
 
-    world.add(Sphere::new(P3::new(0.0, 0.8, 0.0), 0.4, m_center));
-    world.add(Sphere::new(P3::new(-1.0, 0.8, 0.0), 0.4, m_left));
-    world.add(Sphere::new(P3::new(-1.0, 0.8, 0.0), 0.3, m_bubble));
-    world.add(Sphere::new(P3::new(1.0, 0.8, 0.0), 0.4, m_right));
+    hittables.push(Sphere::new(P3::new(0.0, 0.8, 0.0), 0.4, m_center).into());
+    hittables.push(Sphere::new(P3::new(-1.0, 0.8, 0.0), 0.4, m_left).into());
+    hittables.push(Sphere::new(P3::new(-1.0, 0.8, 0.0), 0.3, m_bubble).into());
+    hittables.push(Sphere::new(P3::new(1.0, 0.8, 0.0), 0.4, m_right).into());
 
-    // vertical field of view in degrees
     let vertical_fov: f64 = 20.0;
-    // the point that the camera is looking from
     let look_from: P3 = P3::new(10.0, 3.0, 10.0);
-    // the point that the camera is looking to
     let look_at: P3 = P3::new(0.0, 0.0, 0.0);
-    // the camera-relative "up" direction
     let v_up: V3 = V3::new(0.0, 1.0, 0.0);
-    // variation angle of rays through each pixel
     let defocus_angle: f64 = 0.05;
-    // distance from camera lookfrom point to plane of perfect focus
     let focus_dist: f64 = 10.0;
 
     let camera = Camera::new(
@@ -169,5 +156,5 @@ pub fn random_ballscape() -> (HittableList, Camera) {
         focus_dist,
     );
 
-    (world, camera)
+    (hittables, camera)
 }

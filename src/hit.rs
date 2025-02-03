@@ -1,5 +1,4 @@
 use crate::{bbox::AABBox, material::Material, Ray, P3, V3};
-use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Interval {
@@ -97,59 +96,31 @@ impl HitRecord {
     }
 }
 
-pub trait Hittable: fmt::Debug + Send + Sync + 'static {
-    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
-    fn bounding_box(&self) -> AABBox;
-}
-
-/// Used to mark empty leaves in BVH trees
 #[derive(Debug, Clone, Copy)]
-pub struct Empty;
-
-impl Hittable for Empty {
-    fn hits(&self, _r: &Ray, _ray_t: Interval) -> Option<HitRecord> {
-        None
-    }
-
-    fn bounding_box(&self) -> AABBox {
-        AABBox::default()
-    }
+pub enum Hittable {
+    Empty,
+    Sphere(Sphere),
 }
 
-#[derive(Default, Debug)]
-pub struct HittableList {
-    pub objects: Vec<&'static dyn Hittable>,
-    bbox: AABBox,
-}
-
-impl HittableList {
-    pub fn clear(&mut self) {
-        self.objects.clear();
-    }
-
-    pub fn add(&mut self, obj: impl Hittable + 'static) {
-        self.bbox = AABBox::new_enclosing(self.bbox, obj.bounding_box());
-        self.objects.push(Box::leak(Box::new(obj)));
-    }
-}
-
-impl Hittable for HittableList {
-    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        let mut rec: Option<HitRecord> = None;
-        let mut closest_so_far = ray_t.max;
-
-        for obj in self.objects.iter() {
-            if let Some(obj_rec) = obj.hits(r, Interval::new(ray_t.min, closest_so_far)) {
-                closest_so_far = obj_rec.t;
-                rec = Some(obj_rec);
-            }
+impl Hittable {
+    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        match self {
+            Self::Empty => None,
+            Self::Sphere(s) => s.hits(r, ray_t),
         }
-
-        rec
     }
 
-    fn bounding_box(&self) -> AABBox {
-        self.bbox
+    pub fn bounding_box(&self) -> AABBox {
+        match self {
+            Self::Empty => AABBox::EMPTY,
+            Self::Sphere(s) => s.bbox,
+        }
+    }
+}
+
+impl From<Sphere> for Hittable {
+    fn from(s: Sphere) -> Self {
+        Self::Sphere(s)
     }
 }
 
@@ -193,9 +164,7 @@ impl Sphere {
             bbox,
         }
     }
-}
 
-impl Hittable for Sphere {
     /// The derivation of the calculation here is given in section 5 of Ray tracing in one weekend
     /// https://raytracing.github.io/books/RayTracingInOneWeekend.html
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
@@ -226,10 +195,6 @@ impl Hittable for Sphere {
         let outward_normal = (p - current_center) / self.radius;
 
         Some(HitRecord::new(root, p, outward_normal, r, self.mat))
-    }
-
-    fn bounding_box(&self) -> AABBox {
-        self.bbox
     }
 }
 

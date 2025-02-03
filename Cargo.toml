@@ -3,6 +3,16 @@ name = "raymart"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = true
+panic = 'abort'
+incremental = false
+codegen-units = 1
+
 [dependencies]
 rand = "0.9.0"
 rayon = "1.10.0"

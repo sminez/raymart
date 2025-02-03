@@ -2,7 +2,7 @@
 //! See Section 3 of https://raytracing.github.io/books/RayTracingTheNextWeek.html for the details
 
 use crate::{
-    hit::{Empty, HitRecord, Hittable, HittableList, Interval},
+    hit::{HitRecord, Hittable, Interval},
     Ray, P3,
 };
 
@@ -100,27 +100,42 @@ impl AABBox {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
+pub enum BvhInner {
+    Node(Box<BvhNode>),
+    Leaf(Hittable),
+}
+
+impl BvhInner {
+    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        match self {
+            Self::Node(n) => n.hits(r, ray_t),
+            Self::Leaf(l) => l.hits(r, ray_t),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct BvhNode {
-    pub left: &'static dyn Hittable,
-    pub right: &'static dyn Hittable,
+    pub left: BvhInner,
+    pub right: BvhInner,
     pub bbox: AABBox,
 }
 
 impl BvhNode {
-    pub fn new_from_hittable_list(l: &HittableList) -> BvhNode {
-        Self::new(l.objects.clone())
+    pub fn new_from_hittables(objects: Vec<Hittable>) -> BvhNode {
+        Self::new(objects)
     }
 
-    pub fn new(mut objects: Vec<&'static dyn Hittable>) -> BvhNode {
+    pub fn new(mut objects: Vec<Hittable>) -> BvhNode {
         let mut bbox = AABBox::EMPTY;
         for obj in objects.iter() {
             bbox = AABBox::new_enclosing(bbox, obj.bounding_box());
         }
 
         let (left, right) = match objects.len() {
-            1 => (objects[0], Box::leak(Box::new(Empty)) as &dyn Hittable),
-            2 => (objects[0], objects[1]),
+            1 => (BvhInner::Leaf(objects[0]), BvhInner::Leaf(Hittable::Empty)),
+            2 => (BvhInner::Leaf(objects[0]), BvhInner::Leaf(objects[1])),
             _ => {
                 let axis = bbox.longest_axis();
                 objects.sort_by(|a, b| {
@@ -130,26 +145,20 @@ impl BvhNode {
                     a_axis_interval.min.total_cmp(&b_axis_interval.min)
                 });
 
-                let robjects = objects.split_off(objects.len() / 2);
-
+                let right = BvhNode::new(objects.split_off(objects.len() / 2));
                 let left = BvhNode::new(objects);
-                let right = BvhNode::new(robjects);
 
                 (
-                    Box::leak(Box::new(left)) as &dyn Hittable,
-                    Box::leak(Box::new(right)) as &dyn Hittable,
+                    BvhInner::Node(Box::new(left)),
+                    BvhInner::Node(Box::new(right)),
                 )
             }
         };
 
-        let bbox = AABBox::new_enclosing(left.bounding_box(), right.bounding_box());
-
         Self { left, right, bbox }
     }
-}
 
-impl Hittable for BvhNode {
-    fn hits(&self, r: &Ray, mut ray_t: Interval) -> Option<HitRecord> {
+    pub fn hits(&self, r: &Ray, mut ray_t: Interval) -> Option<HitRecord> {
         if !self.bbox.hits(r, ray_t) {
             return None;
         }
@@ -163,10 +172,6 @@ impl Hittable for BvhNode {
         };
 
         self.right.hits(r, ray_t).or(hit_left)
-    }
-
-    fn bounding_box(&self) -> AABBox {
-        self.bbox
     }
 }
 
