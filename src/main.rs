@@ -234,7 +234,7 @@ pub fn checkered_spheres() -> (Vec<Hittable>, Camera) {
 pub fn perlin_spheres() -> (Vec<Hittable>, Camera) {
     let mut hittables = Vec::default();
 
-    let perlin = Material::noise();
+    let perlin = Material::noise(4.0);
     hittables.push(Sphere::new(P3::new(0.0, -1000.0, 0.0), 1000.0, perlin.clone()).into());
     hittables.push(Sphere::new(P3::new(0.0, 2.0, 0.0), 2.0, perlin).into());
 
