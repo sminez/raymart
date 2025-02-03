@@ -1,4 +1,4 @@
-use crate::{hit::Interval, Color, HitRecord, Ray, P3, V3};
+use crate::{hit::Interval, noise::Perlin, Color, HitRecord, Ray, P3, V3};
 use image::{open, RgbImage};
 use rand::random_range;
 
@@ -14,6 +14,9 @@ pub enum Texture {
     },
     Image {
         raw: RgbImage,
+    },
+    Noise {
+        noise: Box<Perlin<256>>,
     },
 }
 
@@ -36,6 +39,12 @@ impl Texture {
         Self::Image { raw }
     }
 
+    pub fn noise() -> Texture {
+        Self::Noise {
+            noise: Box::new(Perlin::new()),
+        }
+    }
+
     pub fn value(&self, u: f64, v: f64, p: P3) -> Color {
         match self {
             Self::SolidColor { albedo } => *albedo,
@@ -45,6 +54,7 @@ impl Texture {
                 even,
             } => checker_value(u, v, p, *inv_scale, odd, even),
             Self::Image { raw } => image_value(u, v, p, raw),
+            Self::Noise { noise } => noise_value(p, noise),
         }
     }
 }
@@ -78,6 +88,10 @@ fn image_value(mut u: f64, mut v: f64, _p: P3, raw: &RgbImage) -> Color {
     )
 }
 
+fn noise_value(p: P3, noise: &Perlin<256>) -> Color {
+    Color::new(1.0, 1.0, 1.0) * noise.noise(p)
+}
+
 #[derive(Debug, Clone)]
 pub enum Material {
     Lambertian { texture: Texture },
@@ -101,6 +115,12 @@ impl Material {
     pub fn image(path: &str) -> Material {
         Self::Lambertian {
             texture: Texture::image(path),
+        }
+    }
+
+    pub fn noise() -> Material {
+        Self::Lambertian {
+            texture: Texture::noise(),
         }
     }
 

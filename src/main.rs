@@ -2,6 +2,7 @@ pub mod bbox;
 pub mod color;
 pub mod hit;
 pub mod material;
+pub mod noise;
 pub mod ray;
 pub mod v3;
 
@@ -17,14 +18,15 @@ use v3::{P3, V3};
 
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1600; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 50; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 10; // maximum number of ray bounces allowed
+pub const SAMPLES_PER_PIXEL: u16 = 100; // number of random samples per pixel
+pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
 
 fn main() {
     // let (hittables, camera) = random_ballscape();
     // let (hittables, camera) = checkered_spheres();
     // let (hittables, camera) = composed();
-    let (hittables, camera) = image();
+    // let (hittables, camera) = image();
+    let (hittables, camera) = perlin_spheres();
 
     eprintln!("Computing bvh tree...");
     // There is definitely a break even point in terms of the number of number of hittables
@@ -208,6 +210,36 @@ pub fn checkered_spheres() -> (Vec<Hittable>, Camera) {
 
     let vertical_fov: f64 = 20.0;
     let look_from: P3 = P3::new(12.0, 3.0, 3.0);
+    let look_at: P3 = P3::new(0.0, 0.0, 0.0);
+    let v_up: V3 = V3::new(0.0, 1.0, 0.0);
+    let defocus_angle: f64 = 0.05;
+    let focus_dist: f64 = 10.0;
+
+    let camera = Camera::new(
+        ASPECT_RATIO,
+        IMAGE_WIDTH,
+        SAMPLES_PER_PIXEL,
+        MAX_BOUNCES,
+        vertical_fov,
+        look_from,
+        look_at,
+        v_up,
+        defocus_angle,
+        focus_dist,
+    );
+
+    (hittables, camera)
+}
+
+pub fn perlin_spheres() -> (Vec<Hittable>, Camera) {
+    let mut hittables = Vec::default();
+
+    let perlin = Material::noise();
+    hittables.push(Sphere::new(P3::new(0.0, -1000.0, 0.0), 1000.0, perlin.clone()).into());
+    hittables.push(Sphere::new(P3::new(0.0, 2.0, 0.0), 2.0, perlin).into());
+
+    let vertical_fov: f64 = 20.0;
+    let look_from: P3 = P3::new(13.0, 2.0, 3.0);
     let look_at: P3 = P3::new(0.0, 0.0, 0.0);
     let v_up: V3 = V3::new(0.0, 1.0, 0.0);
     let defocus_angle: f64 = 0.05;
