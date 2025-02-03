@@ -16,6 +16,7 @@ impl Default for Interval {
 impl Interval {
     pub const EMPTY: Interval = Interval::new(f64::INFINITY, -f64::INFINITY);
     pub const UNIVERSE: Interval = Interval::new(-f64::INFINITY, f64::INFINITY);
+    pub const UNIT: Interval = Interval::new(0.0, 1.0);
 
     pub const fn new(min: f64, max: f64) -> Interval {
         Self { min, max }
@@ -162,7 +163,7 @@ impl HittableList {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Sphere {
     center: Ray,
     radius: f64,
@@ -237,7 +238,15 @@ impl Sphere {
         let u = phi / (2.0 * PI);
         let v = theta / PI;
 
-        Some(HitRecord::new(root, p, outward_normal, r, self.mat, u, v))
+        Some(HitRecord::new(
+            root,
+            p,
+            outward_normal,
+            r,
+            self.mat.clone(),
+            u,
+            v,
+        ))
     }
 }
 

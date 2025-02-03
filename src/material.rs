@@ -1,7 +1,8 @@
-use crate::{Color, HitRecord, Ray, P3, V3};
+use crate::{hit::Interval, Color, HitRecord, Ray, P3, V3};
+use image::{open, RgbImage};
 use rand::random_range;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Texture {
     SolidColor {
         albedo: Color,
@@ -10,6 +11,9 @@ pub enum Texture {
         inv_scale: f64,
         odd: &'static Texture,
         even: &'static Texture,
+    },
+    Image {
+        raw: RgbImage,
     },
 }
 
@@ -26,6 +30,12 @@ impl Texture {
         }
     }
 
+    pub fn image(path: &str) -> Texture {
+        let raw = open(path).unwrap().into_rgb8();
+
+        Self::Image { raw }
+    }
+
     pub fn value(&self, u: f64, v: f64, p: P3) -> Color {
         match self {
             Self::SolidColor { albedo } => *albedo,
@@ -34,6 +44,7 @@ impl Texture {
                 odd,
                 even,
             } => checker_value(u, v, p, *inv_scale, odd, even),
+            Self::Image { raw } => image_value(u, v, p, raw),
         }
     }
 }
@@ -50,7 +61,24 @@ fn checker_value(u: f64, v: f64, p: P3, inv_scale: f64, odd: &Texture, even: &Te
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+fn image_value(mut u: f64, mut v: f64, _p: P3, raw: &RgbImage) -> Color {
+    // Clamp input texture coordinates to [0,1] x [1,0]
+    u = Interval::UNIT.clamp(u);
+    v = 1.0 - Interval::UNIT.clamp(v); // Flip V to image coordinates
+
+    let i = (u * raw.width() as f64) as u32;
+    let j = (v * raw.height() as f64) as u32;
+    let px = raw.get_pixel(i, j);
+    let scale = 1.0 / 255.0;
+
+    Color::new(
+        scale * px.0[0] as f64,
+        scale * px.0[1] as f64,
+        scale * px.0[2] as f64,
+    )
+}
+
+#[derive(Debug, Clone)]
 pub enum Material {
     Lambertian { texture: Texture },
     Metal { albedo: Color, fuzz: f64 },
@@ -67,6 +95,12 @@ impl Material {
     pub fn checker(scale: f64, even: Color, odd: Color) -> Material {
         Self::Lambertian {
             texture: Texture::checker(scale, Texture::solid(even), Texture::solid(odd)),
+        }
+    }
+
+    pub fn image(path: &str) -> Material {
+        Self::Lambertian {
+            texture: Texture::image(path),
         }
     }
 
