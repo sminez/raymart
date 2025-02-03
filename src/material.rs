@@ -92,7 +92,6 @@ fn image_value(mut u: f64, mut v: f64, _p: P3, raw: &RgbImage) -> Color {
 
 fn noise_value(p: P3, noise: &Perlin<256>, scale: f64) -> Color {
     Color::new(0.5, 0.5, 0.5) * (1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
-    // return color(.5, .5, .5) * (1 + std::sin(scale * p.z() + 10 * noise.turb(p, 7)));
 }
 
 #[derive(Debug, Clone)]
