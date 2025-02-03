@@ -1,3 +1,4 @@
+pub mod bbox;
 pub mod color;
 pub mod hit;
 pub mod material;
@@ -6,6 +7,7 @@ pub mod v3;
 
 use std::io::stdout;
 
+use bbox::BvhNode;
 use color::Color;
 use hit::{HitRecord, HittableList, Sphere};
 use material::Material;
@@ -15,16 +17,24 @@ use v3::{P3, V3};
 
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1600; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 10; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 5; // maximum number of ray bounces allowed
+pub const SAMPLES_PER_PIXEL: u16 = 500; // number of random samples per pixel
+pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
 
 fn main() {
-    let (world, camera) = random_ballscape();
-    // let (world, camera) = composed();
+    // let (world, camera) = random_ballscape();
+    let (world, camera) = composed();
 
     eprintln!("{camera:#?}");
+    eprintln!("Computing bvh tree...");
+    // There is definitely a break even point in terms of the number of number of hittables
+    // in the scene and the utility of the bvh_tree in terms of the overhead from checking
+    // hits against the bounding boxes.
+    // It's probably worth defining a heuristic to check against the resulting tree to see
+    // if it is worthwhile using it or not.
+    let bvh_tree = BvhNode::new_from_hittable_list(&world);
+
     eprintln!("Rendering...");
-    camera.render_ppm(&mut stdout(), &world);
+    camera.render_ppm(&mut stdout(), &bvh_tree);
 
     eprintln!("\nDone");
 }
@@ -41,6 +51,7 @@ pub fn composed() -> (HittableList, Camera) {
     let gold = Material::metal(Color::new(0.8, 0.6, 0.2), 0.02);
 
     world.add(Sphere::new(P3::new(0.0, 0.0, -1.0), 0.48, matte));
+    world.add(Sphere::new(P3::new(0.0, 0.0, -1.0), 0.50, glass));
 
     world.add(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.48, glass));
     world.add(Sphere::new(P3::new(-1.0, 0.0, -1.2), 0.45, air));

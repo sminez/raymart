@@ -1,6 +1,7 @@
-use crate::{material::Material, Ray, P3, V3};
+use crate::{bbox::AABBox, material::Material, Ray, P3, V3};
+use std::fmt;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Interval {
     pub min: f64,
     pub max: f64,
@@ -16,8 +17,15 @@ impl Interval {
     pub const EMPTY: Interval = Interval::new(f64::INFINITY, -f64::INFINITY);
     pub const UNIVERSE: Interval = Interval::new(-f64::INFINITY, f64::INFINITY);
 
-    pub const fn new(min: f64, max: f64) -> Self {
+    pub const fn new(min: f64, max: f64) -> Interval {
         Self { min, max }
+    }
+
+    pub const fn new_enclosing(a: Interval, b: Interval) -> Interval {
+        Self {
+            min: if a.min <= b.min { a.min } else { b.min },
+            max: if a.max >= b.max { a.max } else { b.max },
+        }
     }
 
     pub const fn size(&self) -> f64 {
@@ -40,6 +48,12 @@ impl Interval {
         } else {
             x
         }
+    }
+
+    pub const fn expand(&self, delta: f64) -> Interval {
+        let padding = delta / 2.0;
+
+        Interval::new(self.min - padding, self.max + padding)
     }
 }
 
@@ -83,13 +97,29 @@ impl HitRecord {
     }
 }
 
-pub trait Hittable: Send + Sync + 'static {
+pub trait Hittable: fmt::Debug + Send + Sync + 'static {
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
+    fn bounding_box(&self) -> AABBox;
 }
 
-#[derive(Default)]
+/// Used to mark empty leaves in BVH trees
+#[derive(Debug, Clone, Copy)]
+pub struct Empty;
+
+impl Hittable for Empty {
+    fn hits(&self, _r: &Ray, _ray_t: Interval) -> Option<HitRecord> {
+        None
+    }
+
+    fn bounding_box(&self) -> AABBox {
+        AABBox::default()
+    }
+}
+
+#[derive(Default, Debug)]
 pub struct HittableList {
-    objects: Vec<Box<dyn Hittable>>,
+    pub objects: Vec<&'static dyn Hittable>,
+    bbox: AABBox,
 }
 
 impl HittableList {
@@ -98,7 +128,8 @@ impl HittableList {
     }
 
     pub fn add(&mut self, obj: impl Hittable + 'static) {
-        self.objects.push(Box::new(obj));
+        self.bbox = AABBox::new_enclosing(self.bbox, obj.bounding_box());
+        self.objects.push(Box::leak(Box::new(obj)));
     }
 }
 
@@ -116,6 +147,10 @@ impl Hittable for HittableList {
 
         rec
     }
+
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -124,28 +159,38 @@ pub struct Sphere {
     radius: f64,
     radius_sq: f64,
     mat: Material,
+    bbox: AABBox,
 }
 
 impl Sphere {
     pub fn new(center: P3, radius: f64, mat: Material) -> Self {
         let r = radius.max(0.0);
+        let rvec = V3::new(r, r, r);
+        let bbox = AABBox::new_from_points(center - rvec, center + rvec);
 
         Self {
             center: Ray::new(center, V3::default(), 0.0),
             radius: r,
             radius_sq: r * r,
             mat,
+            bbox,
         }
     }
 
     pub fn new_moving(center1: P3, center2: P3, radius: f64, mat: Material) -> Self {
         let r = radius.max(0.0);
+        let rvec = V3::new(r, r, r);
+        let center = Ray::new(center1, center2 - center1, 0.0);
+        let bbox1 = AABBox::new_from_points(center.at(0.0) - rvec, center.at(0.0) + rvec);
+        let bbox2 = AABBox::new_from_points(center.at(1.0) - rvec, center.at(1.0) + rvec);
+        let bbox = AABBox::new_enclosing(bbox1, bbox2);
 
         Self {
-            center: Ray::new(center1, center2 - center1, 0.0),
+            center,
             radius: r,
             radius_sq: r * r,
             mat,
+            bbox,
         }
     }
 }
@@ -181,5 +226,27 @@ impl Hittable for Sphere {
         let outward_normal = (p - current_center) / self.radius;
 
         Some(HitRecord::new(root, p, outward_normal, r, self.mat))
+    }
+
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use simple_test_case::test_case;
+
+    #[test_case(Interval::new(1.0, 2.0), Interval::new(1.0, 2.0), Interval::new(1.0, 2.0); "idempotent")]
+    #[test_case(Interval::new(1.0, 3.0), Interval::new(2.0, 5.0), Interval::new(1.0, 5.0); "overlapping")]
+    #[test_case(Interval::new(1.0, 2.0), Interval::new(3.0, 5.0), Interval::new(1.0, 5.0); "disjoint")]
+    #[test_case(Interval::EMPTY, Interval::new(3.0, 5.0), Interval::new(3.0, 5.0); "with empty")]
+    #[test_case(Interval::UNIVERSE, Interval::new(3.0, 5.0), Interval::UNIVERSE; "with universe")]
+    #[test]
+    fn enclosing_works(a: Interval, b: Interval, expected: Interval) {
+        let res = Interval::new_enclosing(a, b);
+
+        assert_eq!(res, expected);
     }
 }
