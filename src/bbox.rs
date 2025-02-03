@@ -134,8 +134,14 @@ impl BvhNode {
         }
 
         let (left, right) = match objects.len() {
-            1 => (BvhInner::Leaf(objects[0]), BvhInner::Leaf(Hittable::Empty)),
-            2 => (BvhInner::Leaf(objects[0]), BvhInner::Leaf(objects[1])),
+            1 => (
+                BvhInner::Leaf(objects.remove(0)),
+                BvhInner::Leaf(Hittable::Empty),
+            ),
+            2 => (
+                BvhInner::Leaf(objects.remove(0)),
+                BvhInner::Leaf(objects.remove(0)),
+            ),
             _ => {
                 let axis = bbox.longest_axis();
                 objects.sort_by(|a, b| {

@@ -17,11 +17,12 @@ use v3::{P3, V3};
 
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1600; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 500; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
+pub const SAMPLES_PER_PIXEL: u16 = 600; // number of random samples per pixel
+pub const MAX_BOUNCES: u8 = 60; // maximum number of ray bounces allowed
 
 fn main() {
     // let (hittables, camera) = random_ballscape();
+    // let (hittables, camera) = checkered_spheres();
     let (hittables, camera) = composed();
 
     eprintln!("Computing bvh tree...");
@@ -41,10 +42,10 @@ fn main() {
 pub fn composed() -> (Vec<Hittable>, Camera) {
     let mut hittables = Vec::default();
 
-    let m_ground = Material::lambertian(Color::new(0.5, 0.8, 0.2));
+    let m_ground = Material::checker(0.32, Color::new(0.5, 0.8, 0.2), Color::new(0.9, 0.9, 0.9));
     hittables.push(Sphere::new(P3::new(0.0, -100.5, -1.0), 100.0, m_ground).into());
 
-    let matte = Material::lambertian(Color::new(0.95, 0.15, 0.25));
+    let matte = Material::solid_color(Color::new(0.95, 0.15, 0.25));
     let glass = Material::dielectric(1.33);
     let air = Material::dielectric(1.0 / 1.33);
     let gold = Material::metal(Color::new(0.8, 0.6, 0.2), 0.02);
@@ -62,9 +63,12 @@ pub fn composed() -> (Vec<Hittable>, Camera) {
     hittables.push(Sphere::new(P3::new(0.4, -0.31, 1.0), 0.22, glass).into());
     hittables.push(Sphere::new(P3::new(-0.4, -0.3, 1.0), 0.2, gold).into());
 
-    hittables.push(Sphere::new(P3::new(-0.7, -0.42, 1.2), 0.1, matte).into());
-    hittables.push(Sphere::new(P3::new(-0.1, -0.43, 1.6), 0.1, matte).into());
-    hittables.push(Sphere::new(P3::new(0.6, -0.44, 1.9), 0.1, matte).into());
+    hittables.push(Sphere::new(P3::new(-0.7, -0.42, 1.2), 0.098, matte).into());
+    hittables.push(Sphere::new(P3::new(-0.7, -0.42, 1.2), 0.1, glass).into());
+    hittables.push(Sphere::new(P3::new(-0.1, -0.43, 1.6), 0.098, matte).into());
+    hittables.push(Sphere::new(P3::new(-0.1, -0.43, 1.6), 0.1, glass).into());
+    hittables.push(Sphere::new(P3::new(0.6, -0.44, 1.9), 0.098, matte).into());
+    hittables.push(Sphere::new(P3::new(0.6, -0.44, 1.9), 0.1, glass).into());
 
     let vertical_fov: f64 = 10.0;
     let look_from: P3 = P3::new(0.0, 1.0, 11.0);
@@ -93,7 +97,7 @@ pub fn composed() -> (Vec<Hittable>, Camera) {
 pub fn random_ballscape() -> (Vec<Hittable>, Camera) {
     let mut hittables = Vec::default();
 
-    let m_ground = Material::lambertian(Color::new(0.5, 0.5, 0.5));
+    let m_ground = Material::solid_color(Color::new(0.5, 0.5, 0.5));
     hittables.push(Sphere::new(P3::new(0.0, -1000.0, -1.0), 1000.0, m_ground).into());
 
     for a in -11..11 {
@@ -108,7 +112,7 @@ pub fn random_ballscape() -> (Vec<Hittable>, Camera) {
             if (center - P3::new(2.0, 0.2, 0.0)).length() > 0.9 {
                 let mat = if k < 0.8 {
                     let albedo = Color::random(0.0, 1.0) * Color::random(0.0, 1.0);
-                    let mat = Material::lambertian(albedo);
+                    let mat = Material::solid_color(albedo);
                     let center2 = center + V3::new(0.0, random_range(0.0..0.5), 0.0);
 
                     hittables.push(Sphere::new_moving(center, center2, 0.2, mat).into());
@@ -126,7 +130,7 @@ pub fn random_ballscape() -> (Vec<Hittable>, Camera) {
         }
     }
 
-    let m_center = Material::lambertian(Color::new(0.3, 0.2, 0.5));
+    let m_center = Material::solid_color(Color::new(0.3, 0.2, 0.5));
     let m_left = Material::dielectric(1.5);
     let m_bubble = Material::dielectric(1.0 / 1.5);
     let m_right = Material::metal(Color::new(0.8, 0.6, 0.2), 0.02);
@@ -138,6 +142,36 @@ pub fn random_ballscape() -> (Vec<Hittable>, Camera) {
 
     let vertical_fov: f64 = 20.0;
     let look_from: P3 = P3::new(10.0, 3.0, 10.0);
+    let look_at: P3 = P3::new(0.0, 0.0, 0.0);
+    let v_up: V3 = V3::new(0.0, 1.0, 0.0);
+    let defocus_angle: f64 = 0.05;
+    let focus_dist: f64 = 10.0;
+
+    let camera = Camera::new(
+        ASPECT_RATIO,
+        IMAGE_WIDTH,
+        SAMPLES_PER_PIXEL,
+        MAX_BOUNCES,
+        vertical_fov,
+        look_from,
+        look_at,
+        v_up,
+        defocus_angle,
+        focus_dist,
+    );
+
+    (hittables, camera)
+}
+
+pub fn checkered_spheres() -> (Vec<Hittable>, Camera) {
+    let mut hittables = Vec::default();
+
+    let m_checker = Material::checker(0.32, Color::new(0.2, 0.3, 0.1), Color::new(0.9, 0.9, 0.9));
+    hittables.push(Sphere::new(P3::new(0.0, -10.0, 0.0), 10.0, m_checker).into());
+    hittables.push(Sphere::new(P3::new(0.0, 10.0, 0.0), 10.0, m_checker).into());
+
+    let vertical_fov: f64 = 20.0;
+    let look_from: P3 = P3::new(12.0, 3.0, 3.0);
     let look_at: P3 = P3::new(0.0, 0.0, 0.0);
     let v_up: V3 = V3::new(0.0, 1.0, 0.0);
     let defocus_angle: f64 = 0.05;

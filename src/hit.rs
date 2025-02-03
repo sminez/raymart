@@ -1,4 +1,5 @@
 use crate::{bbox::AABBox, material::Material, Ray, P3, V3};
+use std::f64::consts::PI;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Interval {
@@ -56,17 +57,19 @@ impl Interval {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct HitRecord {
     pub t: f64,
     pub p: P3,
     pub normal: V3,
     pub front_face: bool,
     pub mat: Material,
+    pub u: f64,
+    pub v: f64,
 }
 
 impl HitRecord {
-    pub fn new(t: f64, p: P3, outward_normal: V3, r: &Ray, mat: Material) -> Self {
+    pub fn new(t: f64, p: P3, outward_normal: V3, r: &Ray, mat: Material, u: f64, v: f64) -> Self {
         let front_face = r.dir.dot(&outward_normal) < 0.0;
         let normal = if front_face {
             outward_normal
@@ -80,6 +83,8 @@ impl HitRecord {
             normal,
             front_face,
             mat,
+            u,
+            v,
         }
     }
 
@@ -96,10 +101,11 @@ impl HitRecord {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Hittable {
     Empty,
     Sphere(Sphere),
+    List(HittableList),
 }
 
 impl Hittable {
@@ -107,6 +113,7 @@ impl Hittable {
         match self {
             Self::Empty => None,
             Self::Sphere(s) => s.hits(r, ray_t),
+            Self::List(l) => l.hits(r, ray_t),
         }
     }
 
@@ -114,6 +121,7 @@ impl Hittable {
         match self {
             Self::Empty => AABBox::EMPTY,
             Self::Sphere(s) => s.bbox,
+            Self::List(l) => l.bbox,
         }
     }
 }
@@ -121,6 +129,36 @@ impl Hittable {
 impl From<Sphere> for Hittable {
     fn from(s: Sphere) -> Self {
         Self::Sphere(s)
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct HittableList {
+    pub objects: Vec<Hittable>,
+    bbox: AABBox,
+}
+
+impl HittableList {
+    pub fn clear(&mut self) {
+        self.objects.clear();
+    }
+
+    pub fn add(&mut self, obj: Hittable) {
+        self.bbox = AABBox::new_enclosing(self.bbox, obj.bounding_box());
+        self.objects.push(obj);
+    }
+
+    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        let mut rec: Option<HitRecord> = None;
+        let mut closest_so_far = ray_t.max;
+        for obj in self.objects.iter() {
+            if let Some(obj_rec) = obj.hits(r, Interval::new(ray_t.min, closest_so_far)) {
+                closest_so_far = obj_rec.t;
+                rec = Some(obj_rec);
+            }
+        }
+
+        rec
     }
 }
 
@@ -194,7 +232,12 @@ impl Sphere {
         let p = r.at(root);
         let outward_normal = (p - current_center) / self.radius;
 
-        Some(HitRecord::new(root, p, outward_normal, r, self.mat))
+        let theta = (-outward_normal.y).acos();
+        let phi = (-outward_normal.z).atan2(outward_normal.x) + PI;
+        let u = phi / (2.0 * PI);
+        let v = theta / PI;
+
+        Some(HitRecord::new(root, p, outward_normal, r, self.mat, u, v))
     }
 }
 
