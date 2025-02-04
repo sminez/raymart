@@ -14,6 +14,7 @@ pub struct Camera {
     image_height: u16,       // rendered image height (pixels)
     samples_pp: u16,         // number of random samples per pixel
     max_bounces: u8,         // maximum number of ray bounces allowed
+    bg: Color,               // scene background color
     center: P3,              // camera center
     pixel_origin: P3,        // location of pixel 0,0
     pixel_delta_u: V3,       // offset to pixel to the right
@@ -31,6 +32,7 @@ impl Camera {
         image_width: u16,
         samples_pp: u16,
         max_bounces: u8,
+        bg: Color,
         vfov: f64,
         look_from: P3,
         look_at: P3,
@@ -72,6 +74,7 @@ impl Camera {
             image_height,
             samples_pp,
             max_bounces,
+            bg,
             center,
             pixel_origin,
             pixel_delta_u,
@@ -94,7 +97,7 @@ impl Camera {
                 let res = (0..self.image_width).into_par_iter().map(move |i| {
                     let color = (0..self.samples_pp)
                         .into_par_iter()
-                        .map(|_| self.get_ray(i, j).color(self.max_bounces, world))
+                        .map(|_| self.get_ray(i, j).color(self.max_bounces, world, self.bg))
                         .reduce(Color::default, |a, b| a + b);
 
                     (color * self.pixel_sample_scale).ppm_string()
@@ -149,21 +152,22 @@ impl Ray {
         self.orig + t * self.dir
     }
 
-    fn color(&self, depth: u8, world: &BvhNode) -> Color {
+    fn color(&self, depth: u8, world: &BvhNode, bg: Color) -> Color {
         if depth == 0 {
-            return Color::default();
+            return Color::BLACK;
         }
 
-        if let Some(hit_record) = world.hits(self, Interval::new(0.001, f64::INFINITY)) {
-            return match hit_record.mat.scatter(self, &hit_record) {
-                Some((scattered, attenuation)) => attenuation * scattered.color(depth - 1, world),
-                None => Color::default(),
-            };
-        }
+        let hr = match world.hits(self, Interval::new(0.001, f64::INFINITY)) {
+            Some(hr) => hr,
+            None => return bg,
+        };
 
-        let unit_dir = self.dir.unit_vector();
-        let a = 0.5 * (unit_dir.y + 1.0);
+        let emission_color = hr.mat.color_emitted(hr.u, hr.v, hr.p);
+        let scatter_color = match hr.mat.scatter(self, &hr) {
+            Some((scattered, attenuation)) => attenuation * scattered.color(depth - 1, world, bg),
+            None => return emission_color,
+        };
 
-        (1.0 - a) * Color::new(1.0, 1.0, 1.0) + a * Color::new(0.5, 0.7, 1.0)
+        emission_color + scatter_color
     }
 }

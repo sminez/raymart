@@ -99,6 +99,7 @@ pub enum Material {
     Lambertian { texture: Texture },
     Metal { albedo: Color, fuzz: f64 },
     Dielectric { ref_index: f64 },
+    DiffuseLight { texture: Texture },
 }
 
 impl Material {
@@ -136,11 +137,29 @@ impl Material {
         Self::Dielectric { ref_index }
     }
 
+    pub fn diffuse_light(albedo: Color) -> Material {
+        Self::DiffuseLight {
+            texture: Texture::solid(albedo),
+        }
+    }
+
+    pub fn diffuse_light_texture(texture: Texture) -> Material {
+        Self::DiffuseLight { texture }
+    }
+
     pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         match self {
             Self::Lambertian { texture } => lambertian_scatter(texture, r_in, rec),
             Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, rec),
             Self::Dielectric { ref_index } => dielectric_scatter(*ref_index, r_in, rec),
+            Self::DiffuseLight { .. } => None,
+        }
+    }
+
+    pub fn color_emitted(&self, u: f64, v: f64, p: P3) -> Color {
+        match self {
+            Self::DiffuseLight { texture } => texture.value(u, v, p),
+            _ => Color::BLACK,
         }
     }
 }
@@ -185,10 +204,7 @@ fn dielectric_scatter(ref_index: f64, r_in: &Ray, rec: &HitRecord) -> Option<(Ra
         unit_dir.refract(rec.normal, ri)
     };
 
-    Some((
-        Ray::new(rec.p, direction, r_in.time),
-        Color::new(1.0, 1.0, 1.0),
-    ))
+    Some((Ray::new(rec.p, direction, r_in.time), Color::WHITE))
 }
 
 /// Use Schlick's approximation for reflectance.

@@ -16,10 +16,11 @@ use material::Material;
 use ray::{Camera, Ray};
 use v3::{P3, V3};
 
+pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene background color
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
-pub const IMAGE_WIDTH: u16 = 800; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 100; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 10; // maximum number of ray bounces allowed
+pub const IMAGE_WIDTH: u16 = 1600; // image width in pixels
+pub const SAMPLES_PER_PIXEL: u16 = 600; // number of random samples per pixel
+pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
 
 fn main() {
     // let (hittables, camera) = random_ballscape();
@@ -27,7 +28,8 @@ fn main() {
     // let (hittables, camera) = composed();
     // let (hittables, camera) = image();
     // let (hittables, camera) = perlin_spheres();
-    let (hittables, camera) = quads();
+    // let (hittables, camera) = quads();
+    let (hittables, camera) = simple_light();
 
     eprintln!("Computing bvh tree...");
     // There is definitely a break even point in terms of the number of number of hittables
@@ -67,6 +69,7 @@ pub fn image() -> (Vec<Hittable>, Camera) {
         IMAGE_WIDTH,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
+        BG_COLOR,
         vertical_fov,
         look_from,
         look_at,
@@ -122,6 +125,7 @@ pub fn composed() -> (Vec<Hittable>, Camera) {
         IMAGE_WIDTH,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
+        BG_COLOR,
         vertical_fov,
         look_from,
         look_at,
@@ -192,6 +196,7 @@ pub fn random_ballscape() -> (Vec<Hittable>, Camera) {
         IMAGE_WIDTH,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
+        BG_COLOR,
         vertical_fov,
         look_from,
         look_at,
@@ -222,6 +227,7 @@ pub fn checkered_spheres() -> (Vec<Hittable>, Camera) {
         IMAGE_WIDTH,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
+        BG_COLOR,
         vertical_fov,
         look_from,
         look_at,
@@ -252,6 +258,7 @@ pub fn perlin_spheres() -> (Vec<Hittable>, Camera) {
         IMAGE_WIDTH,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
+        BG_COLOR,
         vertical_fov,
         look_from,
         look_at,
@@ -333,6 +340,51 @@ pub fn quads() -> (Vec<Hittable>, Camera) {
         IMAGE_WIDTH,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
+        BG_COLOR,
+        vertical_fov,
+        look_from,
+        look_at,
+        v_up,
+        defocus_angle,
+        focus_dist,
+    );
+
+    (hittables, camera)
+}
+
+pub fn simple_light() -> (Vec<Hittable>, Camera) {
+    let mut hittables = Vec::default();
+
+    let perlin = Material::noise(4.0);
+    hittables.push(Sphere::new(P3::new(0.0, -1000.0, 0.0), 1000.0, perlin.clone()).into());
+    hittables.push(Sphere::new(P3::new(0.0, 2.0, 0.0), 2.0, perlin).into());
+
+    let light1 = Material::diffuse_light(Color::new(0.0, 2.0, 2.0));
+    let light2 = Material::diffuse_light(Color::new(4.0, 0.0, 4.0));
+    hittables.push(Sphere::new(P3::new(0.0, 8.0, 0.0), 2.0, light1).into());
+    hittables.push(
+        Quad::new(
+            P3::new(3., 1., -2.),
+            V3::new(2., 0., 0.),
+            V3::new(0., 2., 0.),
+            light2,
+        )
+        .into(),
+    );
+
+    let vertical_fov: f64 = 20.0;
+    let look_from: P3 = P3::new(26.0, 3.0, 6.0);
+    let look_at: P3 = P3::new(0.0, 2.0, 0.0);
+    let v_up: V3 = V3::new(0.0, 1.0, 0.0);
+    let defocus_angle: f64 = 0.0;
+    let focus_dist: f64 = 10.0;
+
+    let camera = Camera::new(
+        ASPECT_RATIO,
+        IMAGE_WIDTH,
+        SAMPLES_PER_PIXEL,
+        MAX_BOUNCES,
+        Color::BLACK,
         vertical_fov,
         look_from,
         look_at,
