@@ -15,6 +15,10 @@ impl Color {
     pub const WHITE: Color = Color::new(1.0, 1.0, 1.0);
     pub const BLACK: Color = Color::new(0.0, 0.0, 0.0);
 
+    pub const fn grey(v: f64) -> Color {
+        Color::new(v, v, v)
+    }
+
     pub fn ppm_string(&self) -> String {
         // Translate the [0,1] component values to the byte range [0,255].
         let intensity = Interval::new(0.0, 0.999);
