@@ -273,7 +273,7 @@ pub fn quads() -> (Vec<Hittable>, Camera) {
     let teal = Material::solid_color(Color::new(0.2, 0.8, 0.8));
 
     hittables.push(
-        Quad::new(
+        Quad::new_triangle(
             P3::new(-3., -2., 5.),
             V3::new(0., 0., -4.),
             V3::new(0., 4., 0.),
@@ -282,19 +282,22 @@ pub fn quads() -> (Vec<Hittable>, Camera) {
         .into(),
     );
     hittables.push(
-        Quad::new(
+        Quad::new_disk(
             P3::new(-2., -2., 0.),
             V3::new(4., 0., 0.),
             V3::new(0., 4., 0.),
+            1.0,
             green,
         )
         .into(),
     );
     hittables.push(
-        Quad::new(
+        Quad::new_ring(
             P3::new(3., -2., 1.),
             V3::new(0., 0., 4.),
             V3::new(0., 4., 0.),
+            1.0,
+            0.5,
             blue,
         )
         .into(),
