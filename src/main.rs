@@ -19,17 +19,30 @@ use v3::{P3, V3};
 pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene background color
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1600; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 800; // number of random samples per pixel
+pub const SAMPLES_PER_PIXEL: u16 = 500; // number of random samples per pixel
 pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
+
+macro_rules! p {
+    ($x:expr, $y:expr, $z:expr) => {
+        P3::new($x as f64, $y as f64, $z as f64)
+    };
+}
+
+macro_rules! v {
+    ($x:expr, $y:expr, $z:expr) => {
+        V3::new($x as f64, $y as f64, $z as f64)
+    };
+}
 
 fn main() {
     // let (hittables, camera) = random_ballscape();
     // let (hittables, camera) = checkered_spheres();
-    let (hittables, camera) = composed();
+    // let (hittables, camera) = composed();
     // let (hittables, camera) = image();
     // let (hittables, camera) = perlin_spheres();
     // let (hittables, camera) = quads();
     // let (hittables, camera) = simple_light();
+    let (hittables, camera) = cornell_box();
 
     eprintln!("Computing bvh tree...");
     // There is definitely a break even point in terms of the number of number of hittables
@@ -49,20 +62,20 @@ pub fn image() -> (Vec<Hittable>, Camera) {
     let mut hittables = Vec::default();
 
     let m_ground = Material::checker(0.32, Color::new(0.5, 0.8, 0.2), Color::new(0.9, 0.9, 0.9));
-    hittables.push(Sphere::new(P3::new(0.0, -100.5, -1.0), 100.0, m_ground).into());
+    hittables.push(Sphere::new(p!(0, -100.5, -1), 100.0, m_ground).into());
 
     let glass = Material::dielectric(1.33);
     let me = Material::image("sadfrog.png");
 
-    hittables.push(Sphere::new(P3::new(0.0, 0.0, -1.0), 0.48, me).into());
-    hittables.push(Sphere::new(P3::new(0.0, 0.0, -1.0), 0.50, glass).into());
+    hittables.push(Sphere::new(p!(0, 0, -1), 0.48, me).into());
+    hittables.push(Sphere::new(p!(0, 0, -1), 0.50, glass).into());
 
-    let vertical_fov: f64 = 10.0;
-    let look_from: P3 = P3::new(3.0, 1.0, 11.0);
-    let look_at: P3 = P3::new(0.0, 0.0, -1.0);
-    let v_up: V3 = V3::new(0.0, 1.0, 0.0);
-    let defocus_angle: f64 = 0.0;
-    let focus_dist: f64 = 10.0;
+    let vertical_fov = 10.0;
+    let look_from = p!(3, 1, 11);
+    let look_at = p!(0, 0, -1);
+    let v_up = v!(0, 1, 0);
+    let defocus_angle = 0.0;
+    let focus_dist = 10.0;
 
     let camera = Camera::new(
         ASPECT_RATIO,
@@ -386,6 +399,45 @@ pub fn simple_light() -> (Vec<Hittable>, Camera) {
     let camera = Camera::new(
         ASPECT_RATIO,
         IMAGE_WIDTH,
+        SAMPLES_PER_PIXEL,
+        MAX_BOUNCES,
+        Color::BLACK,
+        vertical_fov,
+        look_from,
+        look_at,
+        v_up,
+        defocus_angle,
+        focus_dist,
+    );
+
+    (hittables, camera)
+}
+
+pub fn cornell_box() -> (Vec<Hittable>, Camera) {
+    let mut hittables = Vec::default();
+
+    let red = Material::solid_color(Color::new(0.65, 0.05, 0.05));
+    let green = Material::solid_color(Color::new(0.12, 0.45, 0.15));
+    let white = Material::solid_color(Color::grey(0.73));
+    let light = Material::diffuse_light(Color::grey(15.0));
+
+    hittables.push(Quad::new(p!(555, 0, 0), v!(0, 555, 0), v!(0, 0, 555), green).into());
+    hittables.push(Quad::new(p!(0, 0, 0), v!(0, 555, 0), v!(0, 0, 555), red).into());
+    hittables.push(Quad::new(p!(343, 554, 332), v!(-130, 0, 0), v!(0, 0, -105), light).into());
+    hittables.push(Quad::new(p!(0, 0, 0), v!(555, 0, 0), v!(0, 0, 555), white.clone()).into());
+    hittables.push(Quad::new(p!(0, 0, 555), v!(555, 0, 0), v!(0, 555, 0), white.clone()).into());
+    hittables.push(Quad::new(p!(555, 555, 555), v!(-555, 0, 0), v!(0, 0, -555), white).into());
+
+    let vertical_fov = 40.0;
+    let look_from = p!(278, 278, -800);
+    let look_at = p!(278, 278, 0);
+    let v_up = v!(0, 1, 0);
+    let defocus_angle = 0.0;
+    let focus_dist = 10.0;
+
+    let camera = Camera::new(
+        1.0,
+        600,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
         Color::BLACK,
