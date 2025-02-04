@@ -137,6 +137,11 @@ impl BvhInner {
     }
 }
 
+// There is definitely a break even point in terms of the number of number of hittables
+// in the scene and the utility of the bvh_tree in terms of the overhead from checking
+// hits against the bounding boxes.
+// It's probably worth defining a heuristic to check against the resulting tree to see
+// if it is worthwhile using it or not.
 #[derive(Debug, Clone)]
 pub struct BvhNode {
     pub left: BvhInner,

@@ -143,6 +143,12 @@ impl From<Quad> for Hittable {
     }
 }
 
+impl From<HittableList> for Hittable {
+    fn from(l: HittableList) -> Self {
+        Self::List(l)
+    }
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct HittableList {
     pub objects: Vec<Hittable>,
@@ -379,6 +385,26 @@ impl QuadShape {
             Self::Triangle => alpha > 0. && beta > 0. && alpha + beta < 1.,
         }
     }
+}
+
+/// Construct a closed cuboid containing the two provided opposite vertices: a, b.
+pub fn cuboid(a: P3, b: P3, mat: Material) -> Hittable {
+    let mut sides = HittableList::default();
+    let min = P3::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z));
+    let max = P3::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z));
+
+    let dx = V3::new(max.x - min.x, 0.0, 0.0);
+    let dy = V3::new(0.0, max.y - min.y, 0.0);
+    let dz = V3::new(0.0, 0.0, max.z - min.z);
+
+    sides.add(Quad::new(P3::new(min.x, min.y, max.z), dx, dy, mat.clone()).into());
+    sides.add(Quad::new(P3::new(max.x, min.y, max.z), -dz, dy, mat.clone()).into());
+    sides.add(Quad::new(P3::new(max.x, min.y, min.z), -dx, dy, mat.clone()).into());
+    sides.add(Quad::new(P3::new(min.x, min.y, min.z), dz, dy, mat.clone()).into());
+    sides.add(Quad::new(P3::new(min.x, max.y, max.z), dx, -dz, mat.clone()).into());
+    sides.add(Quad::new(P3::new(min.x, min.y, min.z), dx, -dz, mat).into());
+
+    sides.into()
 }
 
 #[cfg(test)]

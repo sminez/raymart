@@ -7,19 +7,19 @@ pub mod ray;
 pub mod v3;
 
 use rand::random_range;
-use std::io::stdout;
+use std::{env, io::stdout};
 
 use bbox::BvhNode;
 use color::Color;
-use hit::{HitRecord, Hittable, Quad, Sphere};
+use hit::{cuboid, HitRecord, Hittable, Quad, Sphere};
 use material::Material;
 use ray::{Camera, Ray};
 use v3::{P3, V3};
 
 pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene background color
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
-pub const IMAGE_WIDTH: u16 = 1600; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 2500; // number of random samples per pixel
+pub const IMAGE_WIDTH: u16 = 1000; // image width in pixels
+pub const SAMPLES_PER_PIXEL: u16 = 1500; // number of random samples per pixel
 pub const MAX_BOUNCES: u8 = 80; // maximum number of ray bounces allowed
 
 macro_rules! p {
@@ -35,21 +35,26 @@ macro_rules! v {
 }
 
 fn main() {
-    // let (hittables, camera) = random_ballscape();
-    // let (hittables, camera) = checkered_spheres();
-    // let (hittables, camera) = composed();
-    // let (hittables, camera) = image();
-    // let (hittables, camera) = perlin_spheres();
-    // let (hittables, camera) = quads();
-    // let (hittables, camera) = simple_light();
-    let (hittables, camera) = cornell_box_glass_ball();
+    let sim = env::args().nth(1).unwrap_or_default();
+    eprintln!("sim = {sim}");
+
+    let (hittables, camera) = match sim.as_str() {
+        "random-ballscape" => random_ballscape(),
+        "checkered-spheres" => checkered_spheres(),
+        "composed" => composed(),
+        "image" => image(),
+        "perlin-spheres" => perlin_spheres(),
+        "quads" => quads(),
+        "simple-light" => simple_light(),
+        "cornell" => empty_cornell_box(false),
+        "mirror-cornell" => empty_cornell_box(true),
+        "cornell-glass-ball" => cornell_box_glass_ball(),
+        "mirror-cornell-glass-ball" => mirror_cornell_box_glass_ball(),
+        "cornell-cuboids" => cornell_box_cuboids(),
+        _ => cornell_box_cuboids(),
+    };
 
     eprintln!("Computing bvh tree...");
-    // There is definitely a break even point in terms of the number of number of hittables
-    // in the scene and the utility of the bvh_tree in terms of the overhead from checking
-    // hits against the bounding boxes.
-    // It's probably worth defining a heuristic to check against the resulting tree to see
-    // if it is worthwhile using it or not.
     let bvh_tree = BvhNode::new_from_hittables(hittables);
 
     eprintln!("Rendering...");
@@ -394,7 +399,7 @@ fn empty_cornell_box(white_mirror: bool) -> (Vec<Hittable>, Camera) {
 
     let camera = Camera::new(
         1.0,
-        1000,
+        IMAGE_WIDTH,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
         Color::BLACK,
@@ -433,6 +438,18 @@ pub fn mirror_cornell_box_glass_ball() -> (Vec<Hittable>, Camera) {
     hittables.push(Sphere::new(p!(343, 250, 342), 150.0, glass.clone()).into());
     hittables.push(Sphere::new(p!(343, 250, 342), 120.0, air).into());
     hittables.push(Sphere::new(p!(343, 250, 342), 100.0, glass).into());
+
+    (hittables, camera)
+}
+
+pub fn cornell_box_cuboids() -> (Vec<Hittable>, Camera) {
+    let (mut hittables, camera) = empty_cornell_box(false);
+
+    // Contents
+    let white = Material::solid_color(Color::grey(0.73));
+
+    hittables.push(cuboid(p!(130, 0, 65), p!(295, 165, 230), white.clone()));
+    hittables.push(cuboid(p!(265, 0, 295), p!(430, 330, 460), white.clone()));
 
     (hittables, camera)
 }
