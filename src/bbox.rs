@@ -19,29 +19,38 @@ impl AABBox {
         AABBox::new(Interval::UNIVERSE, Interval::UNIVERSE, Interval::UNIVERSE);
 
     pub const fn new(x: Interval, y: Interval, z: Interval) -> AABBox {
-        AABBox { x, y, z }
+        let mut bbox = AABBox { x, y, z };
+        bbox.pad_to_minimum();
+
+        bbox
     }
 
     pub const fn new_enclosing(a: AABBox, b: AABBox) -> AABBox {
-        AABBox {
+        let mut bbox = AABBox {
             x: Interval::new_enclosing(a.x, b.x),
             y: Interval::new_enclosing(a.y, b.y),
             z: Interval::new_enclosing(a.z, b.z),
-        }
+        };
+        bbox.pad_to_minimum();
+
+        bbox
     }
 
     /// Treat the two points a and b as extrema for the bounding box, so we don't require a
     /// particular minimum/maximum coordinate order.
-    pub fn new_from_points(a: P3, b: P3) -> AABBox {
+    pub const fn new_from_points(a: P3, b: P3) -> AABBox {
         let (x1, x2) = if a.x <= b.x { (a.x, b.x) } else { (b.x, a.x) };
         let (y1, y2) = if a.y <= b.y { (a.y, b.y) } else { (b.y, a.y) };
         let (z1, z2) = if a.z <= b.z { (a.z, b.z) } else { (b.z, a.z) };
 
-        AABBox {
+        let mut bbox = AABBox {
             x: Interval::new(x1, x2),
             y: Interval::new(y1, y2),
             z: Interval::new(z1, z2),
-        }
+        };
+        bbox.pad_to_minimum();
+
+        bbox
     }
 
     pub fn hits(&self, r: &Ray, mut ray_t: Interval) -> bool {
@@ -96,6 +105,19 @@ impl AABBox {
             1
         } else {
             2
+        }
+    }
+
+    const fn pad_to_minimum(&mut self) {
+        let delta = 0.0001;
+        if self.x.size() < delta {
+            self.x = self.x.expand(delta);
+        }
+        if self.y.size() < delta {
+            self.y = self.y.expand(delta);
+        }
+        if self.z.size() < delta {
+            self.z = self.z.expand(delta);
         }
     }
 }

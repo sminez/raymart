@@ -51,6 +51,7 @@ impl Interval {
         }
     }
 
+    #[must_use]
     pub const fn expand(&self, delta: f64) -> Interval {
         let padding = delta / 2.0;
 
@@ -106,6 +107,7 @@ impl HitRecord {
 pub enum Hittable {
     Empty,
     Sphere(Sphere),
+    Quad(Quad),
     List(HittableList),
 }
 
@@ -114,6 +116,7 @@ impl Hittable {
         match self {
             Self::Empty => None,
             Self::Sphere(s) => s.hits(r, ray_t),
+            Self::Quad(q) => q.hits(r, ray_t),
             Self::List(l) => l.hits(r, ray_t),
         }
     }
@@ -122,6 +125,7 @@ impl Hittable {
         match self {
             Self::Empty => AABBox::EMPTY,
             Self::Sphere(s) => s.bbox,
+            Self::Quad(q) => q.bbox,
             Self::List(l) => l.bbox,
         }
     }
@@ -130,6 +134,12 @@ impl Hittable {
 impl From<Sphere> for Hittable {
     fn from(s: Sphere) -> Self {
         Self::Sphere(s)
+    }
+}
+
+impl From<Quad> for Hittable {
+    fn from(q: Quad) -> Self {
+        Self::Quad(q)
     }
 }
 
@@ -246,6 +256,73 @@ impl Sphere {
             self.mat.clone(),
             u,
             v,
+        ))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Quad {
+    q: P3,
+    u: V3,
+    v: V3,
+    w: V3,
+    normal: V3,
+    d: f64,
+    mat: Material,
+    bbox: AABBox,
+}
+
+impl Quad {
+    pub fn new(q: P3, u: V3, v: V3, mat: Material) -> Quad {
+        let diag1 = AABBox::new_from_points(q, q + u + v);
+        let diag2 = AABBox::new_from_points(q + u, q + v);
+        let bbox = AABBox::new_enclosing(diag1, diag2);
+
+        let n = u.cross(&v);
+        let normal = n.unit_vector();
+        let d = normal.dot(&q);
+        let w = n / n.dot(&n);
+
+        Self {
+            q,
+            u,
+            v,
+            w,
+            normal,
+            d,
+            mat,
+            bbox,
+        }
+    }
+
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        let denom = self.normal.dot(&r.dir);
+        if denom.abs() < 1e-8 {
+            return None; // ray is parallel to our plane
+        }
+
+        let t = (self.d - self.normal.dot(&r.orig)) / denom;
+        if !ray_t.contains(t) {
+            return None; // hit point is outside of the ray interval
+        }
+
+        let intersection = r.at(t);
+        let planar_hitp = intersection - self.q;
+        let alpha = self.w.dot(&planar_hitp.cross(&self.v));
+        let beta = self.w.dot(&self.u.cross(&planar_hitp));
+
+        if !Interval::UNIT.contains(alpha) || !Interval::UNIT.contains(beta) {
+            return None; // intersects our plane but not enclosed region
+        }
+
+        Some(HitRecord::new(
+            t,
+            intersection,
+            self.normal,
+            r,
+            self.mat.clone(),
+            alpha,
+            beta,
         ))
     }
 }

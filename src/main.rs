@@ -11,22 +11,23 @@ use std::io::stdout;
 
 use bbox::BvhNode;
 use color::Color;
-use hit::{HitRecord, Hittable, Sphere};
+use hit::{HitRecord, Hittable, Quad, Sphere};
 use material::Material;
 use ray::{Camera, Ray};
 use v3::{P3, V3};
 
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
-pub const IMAGE_WIDTH: u16 = 1600; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 500; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
+pub const IMAGE_WIDTH: u16 = 800; // image width in pixels
+pub const SAMPLES_PER_PIXEL: u16 = 100; // number of random samples per pixel
+pub const MAX_BOUNCES: u8 = 10; // maximum number of ray bounces allowed
 
 fn main() {
     // let (hittables, camera) = random_ballscape();
     // let (hittables, camera) = checkered_spheres();
-    let (hittables, camera) = composed();
+    // let (hittables, camera) = composed();
     // let (hittables, camera) = image();
     // let (hittables, camera) = perlin_spheres();
+    let (hittables, camera) = quads();
 
     eprintln!("Computing bvh tree...");
     // There is definitely a break even point in terms of the number of number of hittables
@@ -248,6 +249,84 @@ pub fn perlin_spheres() -> (Vec<Hittable>, Camera) {
 
     let camera = Camera::new(
         ASPECT_RATIO,
+        IMAGE_WIDTH,
+        SAMPLES_PER_PIXEL,
+        MAX_BOUNCES,
+        vertical_fov,
+        look_from,
+        look_at,
+        v_up,
+        defocus_angle,
+        focus_dist,
+    );
+
+    (hittables, camera)
+}
+
+pub fn quads() -> (Vec<Hittable>, Camera) {
+    let mut hittables = Vec::default();
+
+    let red = Material::solid_color(Color::new(1.0, 0.2, 0.2));
+    let green = Material::solid_color(Color::new(0.2, 1.0, 0.2));
+    let blue = Material::solid_color(Color::new(0.2, 0.2, 1.0));
+    let orange = Material::solid_color(Color::new(1.0, 0.5, 0.0));
+    let teal = Material::solid_color(Color::new(0.2, 0.8, 0.8));
+
+    hittables.push(
+        Quad::new(
+            P3::new(-3., -2., 5.),
+            V3::new(0., 0., -4.),
+            V3::new(0., 4., 0.),
+            red,
+        )
+        .into(),
+    );
+    hittables.push(
+        Quad::new(
+            P3::new(-2., -2., 0.),
+            V3::new(4., 0., 0.),
+            V3::new(0., 4., 0.),
+            green,
+        )
+        .into(),
+    );
+    hittables.push(
+        Quad::new(
+            P3::new(3., -2., 1.),
+            V3::new(0., 0., 4.),
+            V3::new(0., 4., 0.),
+            blue,
+        )
+        .into(),
+    );
+    hittables.push(
+        Quad::new(
+            P3::new(-2., 3., 1.),
+            V3::new(4., 0., 0.),
+            V3::new(0., 0., 4.),
+            orange,
+        )
+        .into(),
+    );
+    hittables.push(
+        Quad::new(
+            P3::new(-2., -3., 5.),
+            V3::new(4., 0., 0.),
+            V3::new(0., 0., -4.),
+            teal,
+        )
+        .into(),
+    );
+
+    let vertical_fov: f64 = 80.0;
+    let look_from: P3 = P3::new(0., 0., 9.);
+    let look_at: P3 = P3::new(0., 0., 0.);
+    let v_up: V3 = V3::new(0., 1., 0.);
+    let defocus_angle: f64 = 0.05;
+    let focus_dist: f64 = 10.0;
+
+    let camera = Camera::new(
+        1.0,
         IMAGE_WIDTH,
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
