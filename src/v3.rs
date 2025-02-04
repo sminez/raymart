@@ -16,6 +16,8 @@ pub struct V3 {
 }
 
 impl V3 {
+    pub const ORIGIN: V3 = V3::new(0.0, 0.0, 0.0);
+
     pub const fn new(x: f64, y: f64, z: f64) -> V3 {
         Self { x, y, z }
     }
