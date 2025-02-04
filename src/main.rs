@@ -446,10 +446,41 @@ pub fn cornell_box_cuboids() -> (Vec<Hittable>, Camera) {
     let (mut hittables, camera) = empty_cornell_box(false);
 
     // Contents
-    let white = Material::solid_color(Color::grey(0.73));
+    // let white = Material::solid_color(Color::grey(0.73));
+    let air = Material::dielectric(1.0 / 1.33);
+    let glass = Material::dielectric(1.33);
 
-    hittables.push(cuboid(p!(130, 0, 65), p!(295, 165, 230), white.clone()));
-    hittables.push(cuboid(p!(265, 0, 295), p!(430, 330, 460), white.clone()));
+    hittables.push(
+        cuboid(p!(0, 0, 0), p!(165, 165, 165), glass.clone())
+            .rotate(-18.0)
+            .translate(v!(130, 0, 65)),
+    );
+    hittables.push(
+        cuboid(p!(0, 0, 0), p!(135, 135, 135), air.clone())
+            .rotate(-18.0)
+            .translate(v!(130, 0, 65)),
+    );
+    hittables.push(
+        cuboid(p!(0, 0, 0), p!(115, 115, 115), glass.clone())
+            .rotate(-18.0)
+            .translate(v!(130, 0, 65)),
+    );
+
+    hittables.push(
+        cuboid(p!(0, 0, 0), p!(165, 330, 165), glass.clone())
+            .rotate(15.0)
+            .translate(v!(265, 0, 295)),
+    );
+    hittables.push(
+        cuboid(p!(0, 0, 0), p!(135, 300, 135), air)
+            .rotate(15.0)
+            .translate(v!(265, 0, 295)),
+    );
+    hittables.push(
+        cuboid(p!(0, 0, 0), p!(115, 290, 115), glass)
+            .rotate(15.0)
+            .translate(v!(265, 0, 295)),
+    );
 
     (hittables, camera)
 }

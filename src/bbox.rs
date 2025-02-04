@@ -3,14 +3,15 @@
 
 use crate::{
     hit::{HitRecord, Hittable, Interval},
-    Ray, P3,
+    Ray, P3, V3,
 };
+use std::ops::Add;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct AABBox {
-    x: Interval,
-    y: Interval,
-    z: Interval,
+    pub x: Interval,
+    pub y: Interval,
+    pub z: Interval,
 }
 
 impl AABBox {
@@ -119,6 +120,22 @@ impl AABBox {
         if self.z.size() < delta {
             self.z = self.z.expand(delta);
         }
+    }
+}
+
+impl Add<V3> for AABBox {
+    type Output = AABBox;
+
+    fn add(self, rhs: V3) -> Self::Output {
+        AABBox::new(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
+    }
+}
+
+impl Add<AABBox> for V3 {
+    type Output = AABBox;
+
+    fn add(self, rhs: AABBox) -> Self::Output {
+        rhs + self
     }
 }
 

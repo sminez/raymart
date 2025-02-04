@@ -1,5 +1,5 @@
 use crate::{bbox::AABBox, material::Material, Ray, P3, V3};
-use std::f64::consts::PI;
+use std::{f64::consts::PI, ops::Add};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Interval {
@@ -59,6 +59,22 @@ impl Interval {
     }
 }
 
+impl Add<f64> for Interval {
+    type Output = Interval;
+
+    fn add(self, rhs: f64) -> Self::Output {
+        Interval::new(self.min + rhs, self.max + rhs)
+    }
+}
+
+impl Add<Interval> for f64 {
+    type Output = Interval;
+
+    fn add(self, rhs: Interval) -> Self::Output {
+        rhs + self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct HitRecord {
     pub t: f64,
@@ -109,15 +125,27 @@ pub enum Hittable {
     Sphere(Sphere),
     Quad(Quad),
     List(HittableList),
+    Translate(Translate),
+    Rotate(Rotate),
 }
 
 impl Hittable {
+    pub fn translate(self, offset: V3) -> Hittable {
+        Self::Translate(Translate::new(self, offset))
+    }
+
+    pub fn rotate(self, angle: f64) -> Hittable {
+        Self::Rotate(Rotate::new(self, angle))
+    }
+
     pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         match self {
             Self::Empty => None,
             Self::Sphere(s) => s.hits(r, ray_t),
             Self::Quad(q) => q.hits(r, ray_t),
             Self::List(l) => l.hits(r, ray_t),
+            Self::Translate(t) => t.hits(r, ray_t),
+            Self::Rotate(ro) => ro.hits(r, ray_t),
         }
     }
 
@@ -127,6 +155,8 @@ impl Hittable {
             Self::Sphere(s) => s.bbox,
             Self::Quad(q) => q.bbox,
             Self::List(l) => l.bbox,
+            Self::Translate(t) => t.bbox,
+            Self::Rotate(r) => r.bbox,
         }
     }
 }
@@ -402,9 +432,121 @@ pub fn cuboid(a: P3, b: P3, mat: Material) -> Hittable {
     sides.add(Quad::new(P3::new(max.x, min.y, min.z), -dx, dy, mat.clone()).into());
     sides.add(Quad::new(P3::new(min.x, min.y, min.z), dz, dy, mat.clone()).into());
     sides.add(Quad::new(P3::new(min.x, max.y, max.z), dx, -dz, mat.clone()).into());
-    sides.add(Quad::new(P3::new(min.x, min.y, min.z), dx, -dz, mat).into());
+    sides.add(Quad::new(P3::new(min.x, min.y, min.z), dx, dz, mat).into());
 
     sides.into()
+}
+
+#[derive(Debug, Clone)]
+pub struct Translate {
+    inner: Box<Hittable>,
+    offset: V3,
+    bbox: AABBox,
+}
+
+impl Translate {
+    fn new(inner: Hittable, offset: V3) -> Translate {
+        let bbox = inner.bounding_box() + offset;
+
+        Self {
+            inner: Box::new(inner),
+            offset,
+            bbox,
+        }
+    }
+
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        // Move the ray back by the offset
+        let offset_r = Ray::new(r.orig - self.offset, r.dir, r.time);
+
+        // If the offset ray hits...
+        let mut hr = self.inner.hits(&offset_r, ray_t)?;
+        // apply the offset to the hit record and return
+        hr.p += self.offset;
+
+        Some(hr)
+    }
+}
+
+/// Rotation around y
+#[derive(Debug, Clone)]
+pub struct Rotate {
+    inner: Box<Hittable>,
+    sin_theta: f64,
+    cos_theta: f64,
+    bbox: AABBox,
+}
+
+impl Rotate {
+    fn new(inner: Hittable, angle: f64) -> Rotate {
+        let rad = angle.to_radians();
+        let sin_theta = rad.sin();
+        let cos_theta = rad.cos();
+        let bbox = inner.bounding_box();
+
+        let mut min = P3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
+        let mut max = P3::new(-f64::INFINITY, -f64::INFINITY, -f64::INFINITY);
+
+        for i in 0..2 {
+            for j in 0..2 {
+                for k in 0..2 {
+                    let x = i as f64 * bbox.x.max + (1 - i) as f64 * bbox.x.min;
+                    let y = j as f64 * bbox.y.max + (1 - j) as f64 * bbox.y.min;
+                    let z = k as f64 * bbox.z.max + (1 - k) as f64 * bbox.z.min;
+
+                    let new_x = cos_theta * x + sin_theta * z;
+                    let new_z = -sin_theta * x + cos_theta * z;
+                    let v = V3::new(new_x, y, new_z);
+
+                    for c in 0..3 {
+                        min[c] = min[c].min(v[c]);
+                        max[c] = max[c].max(v[c]);
+                    }
+                }
+            }
+        }
+
+        let bbox = AABBox::new_from_points(min, max);
+
+        Self {
+            inner: Box::new(inner),
+            sin_theta,
+            cos_theta,
+            bbox,
+        }
+    }
+
+    #[inline]
+    fn rot_f(&self, v_in: V3) -> V3 {
+        V3::new(
+            self.cos_theta * v_in.x - self.sin_theta * v_in.z,
+            v_in.y,
+            self.sin_theta * v_in.x + self.cos_theta * v_in.z,
+        )
+    }
+
+    #[inline]
+    fn rot_b(&self, v_in: V3) -> V3 {
+        V3::new(
+            self.cos_theta * v_in.x + self.sin_theta * v_in.z,
+            v_in.y,
+            -self.sin_theta * v_in.x + self.cos_theta * v_in.z,
+        )
+    }
+
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        // Transform the ray from world space to object space.
+        let rot_r = Ray::new(self.rot_f(r.orig), self.rot_f(r.dir), r.time);
+
+        // If the rotated ray hits...
+        let mut hr = self.inner.hits(&rot_r, ray_t)?;
+
+        // apply the rotation to the hit record and return
+        hr.p = self.rot_b(hr.p);
+        hr.normal = self.rot_b(hr.normal);
+
+        Some(hr)
+    }
 }
 
 #[cfg(test)]
