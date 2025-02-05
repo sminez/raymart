@@ -12,6 +12,8 @@ pub struct AABBox {
     pub x: Interval,
     pub y: Interval,
     pub z: Interval,
+    min: wide::f64x4,
+    max: wide::f64x4,
 }
 
 impl AABBox {
@@ -20,7 +22,13 @@ impl AABBox {
         AABBox::new(Interval::UNIVERSE, Interval::UNIVERSE, Interval::UNIVERSE);
 
     pub const fn new(x: Interval, y: Interval, z: Interval) -> AABBox {
-        let mut bbox = AABBox { x, y, z };
+        let mut bbox = AABBox {
+            x,
+            y,
+            z,
+            min: wide::f64x4::ZERO,
+            max: wide::f64x4::ZERO,
+        };
         bbox.pad_to_minimum();
 
         bbox
@@ -31,6 +39,8 @@ impl AABBox {
             x: Interval::new_enclosing(a.x, b.x),
             y: Interval::new_enclosing(a.y, b.y),
             z: Interval::new_enclosing(a.z, b.z),
+            min: wide::f64x4::ZERO,
+            max: wide::f64x4::ZERO,
         };
         bbox.pad_to_minimum();
 
@@ -48,42 +58,27 @@ impl AABBox {
             x: Interval::new(x1, x2),
             y: Interval::new(y1, y2),
             z: Interval::new(z1, z2),
+            min: wide::f64x4::ZERO,
+            max: wide::f64x4::ZERO,
         };
         bbox.pad_to_minimum();
 
         bbox
     }
 
-    pub fn hits(&self, r: &Ray, mut ray_t: Interval) -> bool {
-        for axis in 0..3 {
-            let ax = self.axis_interval(axis);
-            let adinv = 1.0 / r.dir[axis];
+    pub fn hits(&self, r: &Ray, ray_t: Interval) -> bool {
+        let tmin = (self.min - r.ro) * r.inv_dir;
+        let tmax = (self.max - r.ro) * r.inv_dir;
+        let t1 = tmin.fast_min(tmax);
+        let t2 = tmin.fast_max(tmax);
 
-            let t0 = (ax.min - r.orig[axis]) * adinv;
-            let t1 = (ax.max - r.orig[axis]) * adinv;
+        let [x1, y1, z1, _] = t1.to_array();
+        let [x2, y2, z2, _] = t2.to_array();
 
-            if t0 < t1 {
-                if t0 > ray_t.min {
-                    ray_t.min = t0;
-                }
-                if t1 < ray_t.max {
-                    ray_t.max = t1;
-                }
-            } else {
-                if t1 > ray_t.min {
-                    ray_t.min = t1;
-                }
-                if t0 < ray_t.max {
-                    ray_t.max = t0;
-                }
-            }
+        let tnear = ray_t.min.max(x1.max(y1.max(z1)));
+        let tfar = ray_t.max.min(x2.min(y2.min(z2)));
 
-            if ray_t.max <= ray_t.min {
-                return false;
-            }
-        }
-
-        true
+        tnear <= tfar
     }
 
     const fn axis_interval(&self, i: usize) -> Interval {
@@ -120,6 +115,9 @@ impl AABBox {
         if self.z.size() < delta {
             self.z = self.z.expand(delta);
         }
+
+        self.min = wide::f64x4::new([self.x.min, self.y.min, self.z.min, 0.0]);
+        self.max = wide::f64x4::new([self.x.max, self.y.max, self.z.max, 0.0]);
     }
 }
 

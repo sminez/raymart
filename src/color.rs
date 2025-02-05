@@ -26,6 +26,6 @@ impl Color {
         let ig = (256.0 * intensity.clamp(linear_to_gamma(self.y))) as i64;
         let ib = (256.0 * intensity.clamp(linear_to_gamma(self.z))) as i64;
 
-        format!("{ir} {ig} {ib}")
+        format!("{ir} {ig} {ib}\n")
     }
 }

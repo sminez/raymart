@@ -91,7 +91,7 @@ impl Camera {
             panic!("unable to write ppm header: {e}");
         }
 
-        let lines: Vec<String> = (0..self.image_height)
+        let pixels: Vec<Color> = (0..self.image_height)
             .into_par_iter()
             .flat_map(move |j| {
                 let res = (0..self.image_width).into_par_iter().map(move |i| {
@@ -99,17 +99,20 @@ impl Camera {
                     let color = (0..self.samples_pp)
                         .into_par_iter()
                         .map(|_| self.ray_color(self.get_ray(fi, fj), world, self.bg))
-                        // .map(|_| self.get_ray(fi, fj).color(self.max_bounces, world, self.bg))
-                        .reduce(Color::default, |a, b| a + b);
+                        .reduce(Color::default, |mut a, b| {
+                            a += b;
+                            a
+                        });
 
-                    (color * self.pixel_sample_scale).ppm_string()
+                    color * self.pixel_sample_scale
                 });
                 eprint!(".");
                 res
             })
             .collect();
 
-        writeln!(w, "{}", lines.join("\n")).unwrap();
+        let s: String = pixels.into_iter().map(|c| c.ppm_string()).collect();
+        writeln!(w, "{s}").unwrap();
     }
 
     /// Construct a camera ray originating from the defocus disk and directed at a randomly
@@ -157,6 +160,10 @@ impl Camera {
                 }
                 None => break,
             };
+
+            if (rcolor.x + rcolor.y + rcolor.z) < 0.0001 {
+                break; // early exit if we can't contribute more light from here
+            }
         }
 
         incoming_light
@@ -168,11 +175,22 @@ pub struct Ray {
     pub orig: P3,
     pub dir: V3,
     pub time: f64,
+    pub inv_dir: wide::f64x4,
+    pub ro: wide::f64x4,
 }
 
 impl Ray {
     pub const fn new(orig: P3, dir: V3, time: f64) -> Self {
-        Self { orig, dir, time }
+        let ro = wide::f64x4::new([orig.x, orig.y, orig.z, 0.0]);
+        let inv_dir = wide::f64x4::new([1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z, 0.0]);
+
+        Self {
+            orig,
+            dir,
+            time,
+            inv_dir,
+            ro,
+        }
     }
 
     pub fn at(&self, t: f64) -> P3 {

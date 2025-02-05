@@ -19,8 +19,8 @@ use v3::{P3, V3};
 pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene background color
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1000; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 1500; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 80; // maximum number of ray bounces allowed
+pub const SAMPLES_PER_PIXEL: u16 = 200; // number of random samples per pixel
+pub const MAX_BOUNCES: u8 = 30; // maximum number of ray bounces allowed
 
 macro_rules! p {
     ($x:expr, $y:expr, $z:expr) => {
@@ -53,7 +53,7 @@ fn main() {
         "cornell-cuboids" => cornell_box_cuboids(),
         "glass-cornell-cuboids" => cornell_box_glass_cuboids(),
         "smoke-cornell-cuboids" => cornell_box_smoke_cuboids(),
-        _ => cornell_box_cuboids(),
+        _ => cornell_box_glass_ball(true),
     };
 
     eprintln!("Computing bvh tree...");
