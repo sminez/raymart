@@ -5,3 +5,7 @@ png:
 scene:
 	./target/release/raymart $(SCENE) > test.ppm
 	convert test.ppm test.png
+
+debug-scene:
+	DEBUG_SAMPLING=1 ./target/release/raymart $(SCENE) > test.ppm
+	convert test.ppm test.png

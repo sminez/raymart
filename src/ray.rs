@@ -86,6 +86,11 @@ impl Camera {
         }
     }
 
+    pub fn set_samples_per_pixel(&mut self, samples_pp: u16) {
+        self.samples_pp = samples_pp;
+        self.pixel_sample_scale = 1.0 / samples_pp as f64;
+    }
+
     pub fn render_ppm(&self, w: &mut impl Write, world: &BvhNode) {
         if let Err(e) = writeln!(w, "P3\n{} {}\n255", self.image_width, self.image_height) {
             panic!("unable to write ppm header: {e}");
@@ -98,7 +103,7 @@ impl Camera {
                     let (fi, fj) = (i as f64, j as f64);
                     let color = (0..self.samples_pp)
                         .into_par_iter()
-                        .map(|_| self.ray_color(self.get_ray(fi, fj), world, self.bg))
+                        .map(|_| self.ray_color(self.get_ray(fi, fj), world))
                         .reduce(Color::default, |mut a, b| {
                             a += b;
                             a
@@ -128,9 +133,8 @@ impl Camera {
         } else {
             self.defocus_disk_sample()
         };
-        let ray_time = random_range(0.0..1.0);
 
-        Ray::new(self.center, sample - ray_origin, ray_time)
+        Ray::new(self.center, sample - ray_origin)
     }
 
     // Returns a random point in the camera defocus disk.
@@ -140,14 +144,14 @@ impl Camera {
         self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
     }
 
-    fn ray_color(&self, mut r: Ray, world: &BvhNode, bg: Color) -> Color {
+    fn ray_color(&self, mut r: Ray, world: &BvhNode) -> Color {
         let mut incoming_light = Color::BLACK;
         let mut rcolor = Color::WHITE;
 
         for _ in 0..self.max_bounces {
             let hr = match world.hits(&r, Interval::new(0.001, f64::INFINITY)) {
                 Some(hr) => hr,
-                None => return incoming_light * bg,
+                None => return rcolor * self.bg,
             };
 
             let emitted_light = hr.mat.color_emitted(hr.u, hr.v, hr.p);
@@ -174,20 +178,18 @@ impl Camera {
 pub struct Ray {
     pub orig: P3,
     pub dir: V3,
-    pub time: f64,
     pub inv_dir: wide::f64x4,
     pub ro: wide::f64x4,
 }
 
 impl Ray {
-    pub const fn new(orig: P3, dir: V3, time: f64) -> Self {
+    pub const fn new(orig: P3, dir: V3) -> Self {
         let ro = wide::f64x4::new([orig.x, orig.y, orig.z, 0.0]);
         let inv_dir = wide::f64x4::new([1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z, 0.0]);
 
         Self {
             orig,
             dir,
-            time,
             inv_dir,
             ro,
         }

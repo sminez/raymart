@@ -19,8 +19,9 @@ use v3::{P3, V3};
 pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene background color
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1000; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 200; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 30; // maximum number of ray bounces allowed
+pub const SAMPLES_PER_PIXEL: u16 = 4500; // number of random samples per pixel
+pub const DEBUG_SAMPLES_PER_PIXEL: u16 = 100; // number of random samples per pixel
+pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
 
 macro_rules! p {
     ($x:expr, $y:expr, $z:expr) => {
@@ -36,9 +37,10 @@ macro_rules! v {
 
 fn main() {
     let sim = env::args().nth(1).unwrap_or_else(|| "default".to_string());
-    eprintln!("sim = {sim}");
+    let debug_sampling = env::var("DEBUG_SAMPLING").is_ok();
+    eprintln!("sim = {sim}\ndebug sampling = {debug_sampling}");
 
-    let (hittables, camera) = match sim.as_str() {
+    let (hittables, mut camera) = match sim.as_str() {
         "random-ballscape" => random_ballscape(),
         "checkered-spheres" => checkered_spheres(),
         "composed" => composed(),
@@ -53,8 +55,12 @@ fn main() {
         "cornell-cuboids" => cornell_box_cuboids(),
         "glass-cornell-cuboids" => cornell_box_glass_cuboids(),
         "smoke-cornell-cuboids" => cornell_box_smoke_cuboids(),
-        _ => cornell_box_glass_ball(true),
+        _ => cornell_box_glass_ball(false),
     };
+
+    if debug_sampling {
+        camera.set_samples_per_pixel(DEBUG_SAMPLES_PER_PIXEL);
+    }
 
     eprintln!("Computing bvh tree...");
     let bvh_tree = BvhNode::new_from_hittables(hittables);
@@ -181,9 +187,8 @@ pub fn random_ballscape() -> (Vec<Hittable>, Camera) {
                 let mat = if k < 0.8 {
                     let albedo = Color::random(0.0, 1.0) * Color::random(0.0, 1.0);
                     let mat = Material::solid_color(albedo);
-                    let center2 = center + v!(0, random_range(0.0..0.5), 0);
 
-                    hittables.push(Sphere::new_moving(center, center2, 0.2, mat).into());
+                    hittables.push(Sphere::new(center, 0.2, mat).into());
                     continue;
                 } else if k < 0.9 {
                     let albedo = Color::random(0.5, 1.0);

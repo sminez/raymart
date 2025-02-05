@@ -7,6 +7,9 @@ use crate::{
 };
 use std::{f64::consts::PI, ops::Add};
 
+const INV_PI: f64 = 1.0 / PI;
+const INV_2PI: f64 = 1.0 / (2.0 * PI);
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Interval {
     pub min: f64,
@@ -229,8 +232,8 @@ impl HittableList {
 
 #[derive(Debug, Clone)]
 pub struct Sphere {
-    center: Ray,
-    radius: f64,
+    center: P3,
+    inv_radius: f64,
     radius_sq: f64,
     mat: Material,
     bbox: AABBox,
@@ -243,25 +246,8 @@ impl Sphere {
         let bbox = AABBox::new_from_points(center - rvec, center + rvec);
 
         Self {
-            center: Ray::new(center, V3::default(), 0.0),
-            radius: r,
-            radius_sq: r * r,
-            mat,
-            bbox,
-        }
-    }
-
-    pub fn new_moving(center1: P3, center2: P3, radius: f64, mat: Material) -> Self {
-        let r = radius.max(0.0);
-        let rvec = V3::new(r, r, r);
-        let center = Ray::new(center1, center2 - center1, 0.0);
-        let bbox1 = AABBox::new_from_points(center.at(0.0) - rvec, center.at(0.0) + rvec);
-        let bbox2 = AABBox::new_from_points(center.at(1.0) - rvec, center.at(1.0) + rvec);
-        let bbox = AABBox::new_enclosing(bbox1, bbox2);
-
-        Self {
             center,
-            radius: r,
+            inv_radius: 1.0 / r,
             radius_sq: r * r,
             mat,
             bbox,
@@ -271,8 +257,7 @@ impl Sphere {
     /// The derivation of the calculation here is given in section 5 of Ray tracing in one weekend
     /// https://raytracing.github.io/books/RayTracingInOneWeekend.html
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        let current_center = self.center.at(r.time);
-        let oc = current_center - r.orig;
+        let oc = self.center - r.orig;
 
         let a = r.dir.square_length();
         let h = r.dir.dot(&oc);
@@ -286,21 +271,22 @@ impl Sphere {
         let sqrt_disc = discriminant.sqrt();
 
         // Find the nearest root that lies between tmin & tmax
-        let mut root = (h - sqrt_disc) / a;
+        let inv_a = 1.0 / a;
+        let mut root = (h - sqrt_disc) * inv_a;
         if !ray_t.surrounds(root) {
-            root = (h + sqrt_disc) / a;
+            root = (h + sqrt_disc) * inv_a;
             if !ray_t.surrounds(root) {
                 return None;
             }
         }
 
         let p = r.at(root);
-        let outward_normal = (p - current_center) / self.radius;
+        let outward_normal = (p - self.center) * self.inv_radius;
 
         let theta = (-outward_normal.y).acos();
         let phi = (-outward_normal.z).atan2(outward_normal.x) + PI;
-        let u = phi / (2.0 * PI);
-        let v = theta / PI;
+        let u = phi * INV_2PI;
+        let v = theta * INV_PI;
 
         Some(HitRecord::new(root, p, outward_normal, r, self.mat, u, v))
     }
@@ -333,7 +319,7 @@ impl Quad {
     /// Radius needs to be 0..1
     pub fn new_disk(q: P3, u: V3, v: V3, r: f64, mat: Material) -> Quad {
         let shape = QuadShape::Disk {
-            r2: (r / 2.0).powi(2),
+            r2: (r * 0.5).powi(2),
         };
 
         Self::new_with_shape(q, u, v, mat, shape)
@@ -342,8 +328,8 @@ impl Quad {
     /// Radii needs to be 0..1
     pub fn new_ring(q: P3, u: V3, v: V3, r1: f64, r2: f64, mat: Material) -> Quad {
         let shape = QuadShape::Ring {
-            r1_2: (r1 / 2.0).powi(2),
-            r2_2: (r2 / 2.0).powi(2),
+            r1_2: (r1 * 0.5).powi(2),
+            r2_2: (r2 * 0.5).powi(2),
         };
 
         Self::new_with_shape(q, u, v, mat, shape)
@@ -521,7 +507,7 @@ impl Translate {
 
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         // Move the ray back by the offset
-        let offset_r = Ray::new(r.orig - self.offset, r.dir, r.time);
+        let offset_r = Ray::new(r.orig - self.offset, r.dir);
 
         // If the offset ray hits...
         let mut hr = self.inner.hits(&offset_r, ray_t)?;
@@ -600,7 +586,7 @@ impl Rotate {
 
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         // Transform the ray from world space to object space.
-        let rot_r = Ray::new(self.rot_f(r.orig), self.rot_f(r.dir), r.time);
+        let rot_r = Ray::new(self.rot_f(r.orig), self.rot_f(r.dir));
 
         // If the rotated ray hits...
         let mut hr = self.inner.hits(&rot_r, ray_t)?;
