@@ -2,7 +2,7 @@ use crate::{hit::Interval, noise::Perlin, Color, HitRecord, Ray, P3, V3};
 use image::{open, RgbImage};
 use rand::random_range;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Texture {
     SolidColor {
         albedo: Color,
@@ -13,10 +13,10 @@ pub enum Texture {
         even: &'static Texture,
     },
     Image {
-        raw: RgbImage,
+        raw: &'static RgbImage,
     },
     Noise {
-        noise: Box<Perlin<256>>,
+        noise: &'static Perlin<256>,
         scale: f64,
     },
 }
@@ -35,14 +35,14 @@ impl Texture {
     }
 
     pub fn image(path: &str) -> Texture {
-        let raw = open(path).unwrap().into_rgb8();
+        let raw = Box::leak(Box::new(open(path).unwrap().into_rgb8()));
 
         Self::Image { raw }
     }
 
     pub fn noise(scale: f64) -> Texture {
         Self::Noise {
-            noise: Box::new(Perlin::new()),
+            noise: Box::leak(Box::new(Perlin::new())),
             scale,
         }
     }
@@ -94,7 +94,7 @@ fn noise_value(p: P3, noise: &Perlin<256>, scale: f64) -> Color {
     Color::new(0.5, 0.5, 0.5) * (1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Material {
     Lambertian { texture: Texture },
     Metal { albedo: Color, fuzz: f64 },

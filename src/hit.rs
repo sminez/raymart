@@ -284,15 +284,7 @@ impl Sphere {
         let u = phi / (2.0 * PI);
         let v = theta / PI;
 
-        Some(HitRecord::new(
-            root,
-            p,
-            outward_normal,
-            r,
-            self.mat.clone(),
-            u,
-            v,
-        ))
+        Some(HitRecord::new(root, p, outward_normal, r, self.mat, u, v))
     }
 }
 
@@ -387,7 +379,7 @@ impl Quad {
             intersection,
             self.normal,
             r,
-            self.mat.clone(),
+            self.mat,
             alpha,
             beta,
         ))
@@ -427,11 +419,11 @@ pub fn cuboid(a: P3, b: P3, mat: Material) -> Hittable {
     let dy = V3::new(0.0, max.y - min.y, 0.0);
     let dz = V3::new(0.0, 0.0, max.z - min.z);
 
-    sides.add(Quad::new(P3::new(min.x, min.y, max.z), dx, dy, mat.clone()).into());
-    sides.add(Quad::new(P3::new(max.x, min.y, max.z), -dz, dy, mat.clone()).into());
-    sides.add(Quad::new(P3::new(max.x, min.y, min.z), -dx, dy, mat.clone()).into());
-    sides.add(Quad::new(P3::new(min.x, min.y, min.z), dz, dy, mat.clone()).into());
-    sides.add(Quad::new(P3::new(min.x, max.y, max.z), dx, -dz, mat.clone()).into());
+    sides.add(Quad::new(P3::new(min.x, min.y, max.z), dx, dy, mat).into());
+    sides.add(Quad::new(P3::new(max.x, min.y, max.z), -dz, dy, mat).into());
+    sides.add(Quad::new(P3::new(max.x, min.y, min.z), -dx, dy, mat).into());
+    sides.add(Quad::new(P3::new(min.x, min.y, min.z), dz, dy, mat).into());
+    sides.add(Quad::new(P3::new(min.x, max.y, max.z), dx, -dz, mat).into());
     sides.add(Quad::new(P3::new(min.x, min.y, min.z), dx, dz, mat).into());
 
     sides.into()

@@ -111,28 +111,28 @@ pub fn composed() -> (Vec<Hittable>, Camera) {
     let gold = Material::metal(Color::new(0.8, 0.6, 0.2), 0.02);
     let light = Material::diffuse_light(Color::grey(2.0));
 
-    hittables.push(Sphere::new(p!(0, 0, -1), 0.48, matte.clone()).into());
-    hittables.push(Sphere::new(p!(0, 0, -1), 0.50, glass.clone()).into());
+    hittables.push(Sphere::new(p!(0, 0, -1), 0.48, matte).into());
+    hittables.push(Sphere::new(p!(0, 0, -1), 0.50, glass).into());
 
-    hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.48, glass.clone()).into());
-    hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.45, air.clone()).into());
-    hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.42, glass.clone()).into());
-    // hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.39, gold.clone()).into());
-    hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.24, light.clone()).into());
+    hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.48, glass).into());
+    hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.45, air).into());
+    hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.42, glass).into());
+    // hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.39, gold).into());
+    hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.24, light).into());
 
-    hittables.push(Sphere::new(p!(1, 0, -1), 0.48, gold.clone()).into());
+    hittables.push(Sphere::new(p!(1, 0, -1), 0.48, gold).into());
 
-    hittables.push(Sphere::new(p!(0.4, -0.31, 1), 0.22, glass.clone()).into());
+    hittables.push(Sphere::new(p!(0.4, -0.31, 1), 0.22, glass).into());
     hittables.push(Sphere::new(p!(0.4, -0.31, 1), 0.1, light).into());
 
-    hittables.push(Sphere::new(p!(-0.4, -0.3, 1), 0.2, gold.clone()).into());
+    hittables.push(Sphere::new(p!(-0.4, -0.3, 1), 0.2, gold).into());
 
-    hittables.push(Sphere::new(p!(-0.7, -0.42, 1.2), 0.098, matte.clone()).into());
-    hittables.push(Sphere::new(p!(-0.7, -0.42, 1.2), 0.1, glass.clone()).into());
-    hittables.push(Sphere::new(p!(-0.1, -0.43, 1.6), 0.098, matte.clone()).into());
-    hittables.push(Sphere::new(p!(-0.1, -0.43, 1.6), 0.1, glass.clone()).into());
-    hittables.push(Sphere::new(p!(0.6, -0.44, 1.9), 0.098, matte.clone()).into());
-    hittables.push(Sphere::new(p!(0.6, -0.44, 1.9), 0.1, glass.clone()).into());
+    hittables.push(Sphere::new(p!(-0.7, -0.42, 1.2), 0.098, matte).into());
+    hittables.push(Sphere::new(p!(-0.7, -0.42, 1.2), 0.1, glass).into());
+    hittables.push(Sphere::new(p!(-0.1, -0.43, 1.6), 0.098, matte).into());
+    hittables.push(Sphere::new(p!(-0.1, -0.43, 1.6), 0.1, glass).into());
+    hittables.push(Sphere::new(p!(0.6, -0.44, 1.9), 0.098, matte).into());
+    hittables.push(Sphere::new(p!(0.6, -0.44, 1.9), 0.1, glass).into());
 
     let vertical_fov = 10.0;
     let look_from = p!(0, 1, 11);
@@ -234,7 +234,7 @@ pub fn checkered_spheres() -> (Vec<Hittable>, Camera) {
     let mut hittables = Vec::default();
 
     let m_checker = Material::checker(0.32, Color::new(0.2, 0.3, 0.1), Color::new(0.9, 0.9, 0.9));
-    hittables.push(Sphere::new(p!(0, -10, 0), 10.0, m_checker.clone()).into());
+    hittables.push(Sphere::new(p!(0, -10, 0), 10.0, m_checker).into());
     hittables.push(Sphere::new(p!(0, 10, 0), 10.0, m_checker).into());
 
     let vertical_fov: f64 = 20.0;
@@ -265,7 +265,7 @@ pub fn perlin_spheres() -> (Vec<Hittable>, Camera) {
     let mut hittables = Vec::default();
 
     let perlin = Material::noise(4.0);
-    hittables.push(Sphere::new(p!(0, -1000, 0), 1000.0, perlin.clone()).into());
+    hittables.push(Sphere::new(p!(0, -1000, 0), 1000.0, perlin).into());
     hittables.push(Sphere::new(p!(0, 2, 0), 2.0, perlin).into());
 
     let vertical_fov: f64 = 20.0;
@@ -335,7 +335,7 @@ pub fn simple_light() -> (Vec<Hittable>, Camera) {
     let mut hittables = Vec::default();
 
     let perlin = Material::noise(4.0);
-    hittables.push(Sphere::new(p!(0, -1000, 0), 1000.0, perlin.clone()).into());
+    hittables.push(Sphere::new(p!(0, -1000, 0), 1000.0, perlin).into());
     hittables.push(Sphere::new(p!(0, 2, 0), 2.0, perlin).into());
 
     let light1 = Material::diffuse_light(Color::new(0.0, 2.0, 2.0));
@@ -385,8 +385,8 @@ fn empty_cornell_box(white_mirror: bool) -> (Vec<Hittable>, Camera) {
 
     hittables.push(Quad::new(p!(555, 0, 0), v!(0, 555, 0), v!(0, 0, 555), green).into());
     hittables.push(Quad::new(p!(0, 0, 0), v!(0, 555, 0), v!(0, 0, 555), red).into());
-    hittables.push(Quad::new(p!(0, 0, 0), v!(555, 0, 0), v!(0, 0, 555), white.clone()).into());
-    hittables.push(Quad::new(p!(0, 0, 555), v!(555, 0, 0), v!(0, 555, 0), white.clone()).into());
+    hittables.push(Quad::new(p!(0, 0, 0), v!(555, 0, 0), v!(0, 0, 555), white).into());
+    hittables.push(Quad::new(p!(0, 0, 555), v!(555, 0, 0), v!(0, 555, 0), white).into());
     hittables.push(Quad::new(p!(555, 555, 555), v!(-555, 0, 0), v!(0, 0, -555), white).into());
 
     // Camera
@@ -421,7 +421,7 @@ pub fn cornell_box_glass_ball() -> (Vec<Hittable>, Camera) {
     let air = Material::dielectric(1.0 / 1.33);
     let glass = Material::dielectric(1.33);
 
-    hittables.push(Sphere::new(p!(343, 250, 342), 150.0, glass.clone()).into());
+    hittables.push(Sphere::new(p!(343, 250, 342), 150.0, glass).into());
     hittables.push(Sphere::new(p!(343, 250, 342), 120.0, air).into());
     hittables.push(Sphere::new(p!(343, 250, 342), 100.0, glass).into());
 
@@ -435,7 +435,7 @@ pub fn mirror_cornell_box_glass_ball() -> (Vec<Hittable>, Camera) {
     let air = Material::dielectric(1.0 / 1.33);
     let glass = Material::dielectric(1.33);
 
-    hittables.push(Sphere::new(p!(343, 250, 342), 150.0, glass.clone()).into());
+    hittables.push(Sphere::new(p!(343, 250, 342), 150.0, glass).into());
     hittables.push(Sphere::new(p!(343, 250, 342), 120.0, air).into());
     hittables.push(Sphere::new(p!(343, 250, 342), 100.0, glass).into());
 
@@ -451,23 +451,23 @@ pub fn cornell_box_cuboids() -> (Vec<Hittable>, Camera) {
     let glass = Material::dielectric(1.33);
 
     hittables.push(
-        cuboid(p!(0, 0, 0), p!(165, 165, 165), glass.clone())
+        cuboid(p!(0, 0, 0), p!(165, 165, 165), glass)
             .rotate(-18.0)
             .translate(v!(130, 0, 65)),
     );
     hittables.push(
-        cuboid(p!(0, 0, 0), p!(135, 135, 135), air.clone())
+        cuboid(p!(0, 0, 0), p!(135, 135, 135), air)
             .rotate(-18.0)
             .translate(v!(130, 0, 65)),
     );
     hittables.push(
-        cuboid(p!(0, 0, 0), p!(115, 115, 115), glass.clone())
+        cuboid(p!(0, 0, 0), p!(115, 115, 115), glass)
             .rotate(-18.0)
             .translate(v!(130, 0, 65)),
     );
 
     hittables.push(
-        cuboid(p!(0, 0, 0), p!(165, 330, 165), glass.clone())
+        cuboid(p!(0, 0, 0), p!(165, 330, 165), glass)
             .rotate(15.0)
             .translate(v!(265, 0, 295)),
     );
