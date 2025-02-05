@@ -48,12 +48,12 @@ fn main() {
         "simple-light" => simple_light(),
         "cornell" => empty_cornell_box(false),
         "mirror-cornell" => empty_cornell_box(true),
-        "cornell-glass-ball" => cornell_box_glass_ball(),
-        "mirror-cornell-glass-ball" => mirror_cornell_box_glass_ball(),
+        "cornell-glass-ball" => cornell_box_glass_ball(false),
+        "mirror-cornell-glass-ball" => cornell_box_glass_ball(true),
         "cornell-cuboids" => cornell_box_cuboids(),
         "glass-cornell-cuboids" => cornell_box_glass_cuboids(),
         "smoke-cornell-cuboids" => cornell_box_smoke_cuboids(),
-        _ => cornell_box_smoke_cuboids(),
+        _ => cornell_box_cuboids(),
     };
 
     eprintln!("Computing bvh tree...");
@@ -416,22 +416,8 @@ fn empty_cornell_box(white_mirror: bool) -> (Vec<Hittable>, Camera) {
     (hittables, camera)
 }
 
-pub fn cornell_box_glass_ball() -> (Vec<Hittable>, Camera) {
-    let (mut hittables, camera) = empty_cornell_box(false);
-
-    // Contents
-    let air = Material::dielectric(1.0 / 1.33);
-    let glass = Material::dielectric(1.33);
-
-    hittables.push(Sphere::new(p!(343, 250, 342), 150.0, glass).into());
-    hittables.push(Sphere::new(p!(343, 250, 342), 120.0, air).into());
-    hittables.push(Sphere::new(p!(343, 250, 342), 100.0, glass).into());
-
-    (hittables, camera)
-}
-
-pub fn mirror_cornell_box_glass_ball() -> (Vec<Hittable>, Camera) {
-    let (mut hittables, camera) = empty_cornell_box(true);
+pub fn cornell_box_glass_ball(mirror: bool) -> (Vec<Hittable>, Camera) {
+    let (mut hittables, camera) = empty_cornell_box(mirror);
 
     // Contents
     let air = Material::dielectric(1.0 / 1.33);
