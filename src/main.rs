@@ -19,7 +19,7 @@ use v3::{P3, V3};
 pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene background color
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1000; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 1500; // number of random samples per pixel
+pub const SAMPLES_PER_PIXEL: u16 = 400; // number of random samples per pixel
 pub const MAX_BOUNCES: u8 = 80; // maximum number of ray bounces allowed
 
 macro_rules! p {
@@ -35,7 +35,7 @@ macro_rules! v {
 }
 
 fn main() {
-    let sim = env::args().nth(1).unwrap_or_default();
+    let sim = env::args().nth(1).unwrap_or_else(|| "default".to_string());
     eprintln!("sim = {sim}");
 
     let (hittables, camera) = match sim.as_str() {
@@ -446,7 +446,26 @@ pub fn cornell_box_cuboids() -> (Vec<Hittable>, Camera) {
     let (mut hittables, camera) = empty_cornell_box(false);
 
     // Contents
-    // let white = Material::solid_color(Color::grey(0.73));
+    let white = Material::solid_color(Color::grey(0.73));
+
+    hittables.push(
+        cuboid(p!(0, 0, 0), p!(165, 165, 165), white)
+            .rotate(-18.0)
+            .translate(v!(130, 0, 65)),
+    );
+    hittables.push(
+        cuboid(p!(0, 0, 0), p!(165, 330, 165), white)
+            .rotate(15.0)
+            .translate(v!(265, 0, 295)),
+    );
+
+    (hittables, camera)
+}
+
+pub fn cornell_box_glass_cuboids() -> (Vec<Hittable>, Camera) {
+    let (mut hittables, camera) = empty_cornell_box(false);
+
+    // Contents
     let air = Material::dielectric(1.0 / 1.33);
     let glass = Material::dielectric(1.33);
 

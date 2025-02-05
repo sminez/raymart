@@ -95,9 +95,11 @@ impl Camera {
             .into_par_iter()
             .flat_map(move |j| {
                 let res = (0..self.image_width).into_par_iter().map(move |i| {
+                    let (fi, fj) = (i as f64, j as f64);
                     let color = (0..self.samples_pp)
                         .into_par_iter()
-                        .map(|_| self.get_ray(i, j).color(self.max_bounces, world, self.bg))
+                        .map(|_| self.ray_color(self.get_ray(fi, fj), world, self.bg))
+                        // .map(|_| self.get_ray(fi, fj).color(self.max_bounces, world, self.bg))
                         .reduce(Color::default, |a, b| a + b);
 
                     (color * self.pixel_sample_scale).ppm_string()
@@ -112,12 +114,12 @@ impl Camera {
 
     /// Construct a camera ray originating from the defocus disk and directed at a randomly
     /// sampled point around the pixel location i, j.
-    fn get_ray(&self, i: u16, j: u16) -> Ray {
+    fn get_ray(&self, i: f64, j: f64) -> Ray {
         // Vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square
         let offset = V3::new(random_range(-0.5..0.5), random_range(-0.5..0.5), 0.0);
         let sample = self.pixel_origin
-            + ((i as f64 + offset.x) * self.pixel_delta_u)
-            + ((j as f64 + offset.y) * self.pixel_delta_v);
+            + ((i + offset.x) * self.pixel_delta_u)
+            + ((j + offset.y) * self.pixel_delta_v);
         let ray_origin = if self.defocus_angle <= 0.0 {
             self.center
         } else {
@@ -133,6 +135,31 @@ impl Camera {
         let p = V3::random_in_unit_disk();
 
         self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
+    }
+
+    fn ray_color(&self, mut r: Ray, world: &BvhNode, bg: Color) -> Color {
+        let mut incoming_light = Color::BLACK;
+        let mut rcolor = Color::WHITE;
+
+        for _ in 0..self.max_bounces {
+            let hr = match world.hits(&r, Interval::new(0.001, f64::INFINITY)) {
+                Some(hr) => hr,
+                None => return incoming_light * bg,
+            };
+
+            let emitted_light = hr.mat.color_emitted(hr.u, hr.v, hr.p);
+            incoming_light += emitted_light * rcolor;
+
+            match hr.mat.scatter(&r, &hr) {
+                Some((scattered, attenuation)) => {
+                    rcolor *= attenuation;
+                    r = scattered;
+                }
+                None => break,
+            };
+        }
+
+        incoming_light
     }
 }
 
@@ -150,24 +177,5 @@ impl Ray {
 
     pub fn at(&self, t: f64) -> P3 {
         self.orig + t * self.dir
-    }
-
-    fn color(&self, depth: u8, world: &BvhNode, bg: Color) -> Color {
-        if depth == 0 {
-            return Color::BLACK;
-        }
-
-        let hr = match world.hits(self, Interval::new(0.001, f64::INFINITY)) {
-            Some(hr) => hr,
-            None => return bg,
-        };
-
-        let emission_color = hr.mat.color_emitted(hr.u, hr.v, hr.p);
-        let scatter_color = match hr.mat.scatter(self, &hr) {
-            Some((scattered, attenuation)) => attenuation * scattered.color(depth - 1, world, bg),
-            None => return emission_color,
-        };
-
-        emission_color + scatter_color
     }
 }

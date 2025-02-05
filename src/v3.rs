@@ -164,6 +164,14 @@ impl Mul<V3> for V3 {
     }
 }
 
+impl MulAssign<V3> for V3 {
+    fn mul_assign(&mut self, rhs: V3) {
+        self.x *= rhs.x;
+        self.y *= rhs.y;
+        self.z *= rhs.z;
+    }
+}
+
 impl MulAssign<f64> for V3 {
     fn mul_assign(&mut self, rhs: f64) {
         self.x *= rhs;
