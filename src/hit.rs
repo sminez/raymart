@@ -1,4 +1,10 @@
-use crate::{bbox::AABBox, material::Material, Ray, P3, V3};
+use rand::random_range;
+
+use crate::{
+    bbox::AABBox,
+    material::{Material, Texture},
+    Color, Ray, P3, V3,
+};
 use std::{f64::consts::PI, ops::Add};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -121,10 +127,14 @@ impl HitRecord {
 
 #[derive(Debug, Clone)]
 pub enum Hittable {
+    // Primatives
     Empty,
     Sphere(Sphere),
     Quad(Quad),
+    ConstantMedium(ConstantMedium),
+    // Compound
     List(HittableList),
+    // Transforms
     Translate(Translate),
     Rotate(Rotate),
 }
@@ -143,6 +153,7 @@ impl Hittable {
             Self::Empty => None,
             Self::Sphere(s) => s.hits(r, ray_t),
             Self::Quad(q) => q.hits(r, ray_t),
+            Self::ConstantMedium(c) => c.hits(r, ray_t),
             Self::List(l) => l.hits(r, ray_t),
             Self::Translate(t) => t.hits(r, ray_t),
             Self::Rotate(ro) => ro.hits(r, ray_t),
@@ -154,6 +165,7 @@ impl Hittable {
             Self::Empty => AABBox::EMPTY,
             Self::Sphere(s) => s.bbox,
             Self::Quad(q) => q.bbox,
+            Self::ConstantMedium(c) => c.bounding_box(),
             Self::List(l) => l.bbox,
             Self::Translate(t) => t.bbox,
             Self::Rotate(r) => r.bbox,
@@ -170,6 +182,12 @@ impl From<Sphere> for Hittable {
 impl From<Quad> for Hittable {
     fn from(q: Quad) -> Self {
         Self::Quad(q)
+    }
+}
+
+impl From<ConstantMedium> for Hittable {
+    fn from(c: ConstantMedium) -> Self {
+        Self::ConstantMedium(c)
     }
 }
 
@@ -427,6 +445,60 @@ pub fn cuboid(a: P3, b: P3, mat: Material) -> Hittable {
     sides.add(Quad::new(P3::new(min.x, min.y, min.z), dx, dz, mat).into());
 
     sides.into()
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstantMedium {
+    boundary: &'static Hittable,
+    neg_inv_density: f64,
+    phase_func: Material,
+}
+
+impl ConstantMedium {
+    pub fn new(boundary: Hittable, density: f64, color: Color) -> ConstantMedium {
+        Self::new_with_texture(boundary, density, Texture::solid(color))
+    }
+
+    pub fn new_with_texture(boundary: Hittable, density: f64, texture: Texture) -> ConstantMedium {
+        let neg_inv_density = -1.0 / density;
+
+        Self {
+            boundary: Box::leak(Box::new(boundary)),
+            neg_inv_density,
+            phase_func: Material::isotropic_texture(texture),
+        }
+    }
+
+    pub fn bounding_box(&self) -> AABBox {
+        self.boundary.bounding_box()
+    }
+
+    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        let mut hr1 = self.boundary.hits(r, Interval::UNIVERSE)?;
+        let i2 = Interval::new(hr1.t + 0.0001, f64::INFINITY);
+        let mut hr2 = self.boundary.hits(r, i2)?;
+
+        hr1.t = hr1.t.max(ray_t.min);
+        hr2.t = hr2.t.min(ray_t.max);
+        if hr1.t > hr2.t {
+            return None;
+        }
+
+        hr1.t = hr1.t.max(0.0);
+
+        let r_len = r.dir.length();
+        let dist_in_boundary = (hr2.t - hr1.t) * r_len;
+        let hit_dist = self.neg_inv_density * random_range(0.0..1.0f64).log2();
+        if hit_dist > dist_in_boundary {
+            return None;
+        }
+
+        let t = hr1.t + hit_dist / r_len;
+        let normal = V3::new(1.0, 0.0, 0.0); // arbitrary
+        let (u, v) = (0.0, 0.0); // arbitrary
+
+        Some(HitRecord::new(t, r.at(t), normal, r, self.phase_func, u, v))
+    }
 }
 
 #[derive(Debug, Clone)]

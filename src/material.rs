@@ -100,6 +100,7 @@ pub enum Material {
     Metal { albedo: Color, fuzz: f64 },
     Dielectric { ref_index: f64 },
     DiffuseLight { texture: Texture },
+    Isotropic { texture: Texture },
 }
 
 impl Material {
@@ -147,11 +148,22 @@ impl Material {
         Self::DiffuseLight { texture }
     }
 
+    pub fn isotropic(albedo: Color) -> Material {
+        Self::Isotropic {
+            texture: Texture::solid(albedo),
+        }
+    }
+
+    pub fn isotropic_texture(texture: Texture) -> Material {
+        Self::Isotropic { texture }
+    }
+
     pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         match self {
             Self::Lambertian { texture } => lambertian_scatter(texture, r_in, rec),
             Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, rec),
             Self::Dielectric { ref_index } => dielectric_scatter(*ref_index, r_in, rec),
+            Self::Isotropic { texture } => isotropic_scatter(texture, r_in, rec),
             Self::DiffuseLight { .. } => None,
         }
     }
@@ -213,4 +225,11 @@ fn reflectance(cosine: f64, ref_index: f64) -> f64 {
     let r0_sq = r0 * r0;
 
     r0_sq + (1.0 - r0_sq) * (1.0 - cosine).powi(5)
+}
+
+fn isotropic_scatter(texture: &Texture, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
+    let scattered = Ray::new(rec.p, V3::random_unit_vector(), r_in.time);
+    let attenuation = texture.value(rec.u, rec.v, rec.p);
+
+    Some((scattered, attenuation))
 }
