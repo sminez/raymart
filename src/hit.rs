@@ -2,6 +2,7 @@ use rand::random_range;
 
 use crate::{
     bbox::AABBox,
+    blender::Triangle,
     material::{Material, Texture},
     Color, Ray, P3, V3,
 };
@@ -134,6 +135,7 @@ pub enum Hittable {
     Empty,
     Sphere(Sphere),
     Quad(Quad),
+    Triangle(Triangle),
     ConstantMedium(ConstantMedium),
     // Compound
     List(HittableList),
@@ -156,6 +158,7 @@ impl Hittable {
             Self::Empty => None,
             Self::Sphere(s) => s.hits(r, ray_t),
             Self::Quad(q) => q.hits(r, ray_t),
+            Self::Triangle(t) => t.hits(r, ray_t),
             Self::ConstantMedium(c) => c.hits(r, ray_t),
             Self::List(l) => l.hits(r, ray_t),
             Self::Translate(t) => t.hits(r, ray_t),
@@ -168,6 +171,7 @@ impl Hittable {
             Self::Empty => AABBox::EMPTY,
             Self::Sphere(s) => s.bbox,
             Self::Quad(q) => q.bbox,
+            Self::Triangle(t) => t.bbox,
             Self::ConstantMedium(c) => c.bounding_box(),
             Self::List(l) => l.bbox,
             Self::Translate(t) => t.bbox,
@@ -185,6 +189,12 @@ impl From<Sphere> for Hittable {
 impl From<Quad> for Hittable {
     fn from(q: Quad) -> Self {
         Self::Quad(q)
+    }
+}
+
+impl From<Triangle> for Hittable {
+    fn from(t: Triangle) -> Self {
+        Self::Triangle(t)
     }
 }
 

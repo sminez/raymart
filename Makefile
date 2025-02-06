@@ -2,6 +2,10 @@ png:
 	cargo run --release > test.ppm
 	convert test.ppm test.png
 
+debug-png:
+	DEBUG_SAMPLING=1 cargo run --release > test.ppm
+	convert test.ppm test.png
+
 scene:
 	./target/release/raymart $(SCENE) > test.ppm
 	convert test.ppm test.png

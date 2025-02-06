@@ -1,4 +1,5 @@
 pub mod bbox;
+pub mod blender;
 pub mod color;
 pub mod hit;
 pub mod material;
@@ -10,6 +11,7 @@ use rand::random_range;
 use std::{env, io::stdout};
 
 use bbox::BvhNode;
+use blender::Scene;
 use color::Color;
 use hit::{cuboid, ConstantMedium, HitRecord, Hittable, Quad, Sphere};
 use material::Material;
@@ -20,7 +22,7 @@ pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene backgrou
 pub const ASPECT_RATIO: f64 = 16.0 / 10.0; // image aspect ratio
 pub const IMAGE_WIDTH: u16 = 1000; // image width in pixels
 pub const SAMPLES_PER_PIXEL: u16 = 4500; // number of random samples per pixel
-pub const DEBUG_SAMPLES_PER_PIXEL: u16 = 100; // number of random samples per pixel
+pub const DEBUG_SAMPLES_PER_PIXEL: u16 = 10; // number of random samples per pixel
 pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
 
 macro_rules! p {
@@ -55,7 +57,7 @@ fn main() {
         "cornell-cuboids" => cornell_box_cuboids(),
         "glass-cornell-cuboids" => cornell_box_glass_cuboids(),
         "smoke-cornell-cuboids" => cornell_box_smoke_cuboids(),
-        _ => cornell_box_glass_ball(false),
+        _ => mesh(),
     };
 
     if debug_sampling {
@@ -125,7 +127,6 @@ pub fn composed() -> (Vec<Hittable>, Camera) {
     hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.48, glass).into());
     hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.45, air).into());
     hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.42, glass).into());
-    // hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.39, gold).into());
     hittables.push(Sphere::new(p!(-1, 0, -1.2), 0.24, light).into());
 
     hittables.push(Sphere::new(p!(1, 0, -1), 0.48, gold).into());
@@ -155,7 +156,6 @@ pub fn composed() -> (Vec<Hittable>, Camera) {
         SAMPLES_PER_PIXEL,
         MAX_BOUNCES,
         Color::grey(0.01),
-        // BG_COLOR,
         vertical_fov,
         look_from,
         look_at,
@@ -526,6 +526,43 @@ pub fn cornell_box_glass_cuboids() -> (Vec<Hittable>, Camera) {
             .rotate(15.0)
             .translate(v!(25, 25, 25))
             .translate(v!(265, 0, 295)),
+    );
+
+    (hittables, camera)
+}
+
+pub fn mesh() -> (Vec<Hittable>, Camera) {
+    // Camera
+    let s = Scene::try_from_file().unwrap_or_default();
+    let v_up = v!(0, 1, 0);
+    let defocus_angle = 0.0;
+    let focus_dist = 10.0;
+
+    let camera = Camera::new(
+        s.aspect_ratio,
+        s.image_width,
+        s.samples_per_pixel,
+        s.max_bounces,
+        v!(s.bg[0], s.bg[1], s.bg[2]),
+        s.fov,
+        p!(s.from[0], s.from[1], s.from[2]),
+        p!(s.at[0], s.at[1], s.at[2]),
+        v_up,
+        defocus_angle,
+        focus_dist,
+    );
+
+    // Contents
+    let mut hittables = s.load_mesh();
+
+    let light = Material::diffuse_light(Color::grey(s.light_str));
+    hittables.push(
+        Sphere::new(
+            p!(s.light_pos[0], s.light_pos[1], s.light_pos[2]),
+            s.light_r,
+            light,
+        )
+        .into(),
     );
 
     (hittables, camera)
