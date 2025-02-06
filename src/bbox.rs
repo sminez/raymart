@@ -119,6 +119,14 @@ impl AABBox {
         self.min = wide::f64x4::new([self.x.min, self.y.min, self.z.min, 0.0]);
         self.max = wide::f64x4::new([self.x.max, self.y.max, self.z.max, 0.0]);
     }
+
+    pub const fn expand(&self, delta: f64) -> AABBox {
+        AABBox::new(
+            self.x.expand(delta),
+            self.y.expand(delta),
+            self.z.expand(delta),
+        )
+    }
 }
 
 impl Add<V3> for AABBox {

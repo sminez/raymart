@@ -6,7 +6,7 @@ use crate::{
 };
 use rand::random_range;
 use rayon::prelude::*;
-use std::{cmp::max, io::Write};
+use std::{cmp::max, io::Write, time::Instant};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Camera {
@@ -96,6 +96,7 @@ impl Camera {
             panic!("unable to write ppm header: {e}");
         }
 
+        let start = Instant::now();
         let pixels: Vec<Color> = (0..self.image_height)
             .into_par_iter()
             .flat_map(move |j| {
@@ -118,6 +119,9 @@ impl Camera {
 
         let s: String = pixels.into_iter().map(|c| c.ppm_string()).collect();
         writeln!(w, "{s}").unwrap();
+
+        let render_time = Instant::now().duration_since(start);
+        eprintln!("\nRender time: {}s", render_time.as_secs());
     }
 
     /// Construct a camera ray originating from the defocus disk and directed at a randomly

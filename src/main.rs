@@ -25,12 +25,14 @@ pub const SAMPLES_PER_PIXEL: u16 = 4500; // number of random samples per pixel
 pub const DEBUG_SAMPLES_PER_PIXEL: u16 = 10; // number of random samples per pixel
 pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
 
+#[macro_export]
 macro_rules! p {
     ($x:expr, $y:expr, $z:expr) => {
         P3::new($x as f64, $y as f64, $z as f64)
     };
 }
 
+#[macro_export]
 macro_rules! v {
     ($x:expr, $y:expr, $z:expr) => {
         V3::new($x as f64, $y as f64, $z as f64)
@@ -57,7 +59,10 @@ fn main() {
         "cornell-cuboids" => cornell_box_cuboids(),
         "glass-cornell-cuboids" => cornell_box_glass_cuboids(),
         "smoke-cornell-cuboids" => cornell_box_smoke_cuboids(),
-        _ => mesh(),
+        _ => {
+            let s = Scene::try_from_file().unwrap_or_default();
+            s.load_scene()
+        }
     };
 
     if debug_sampling {
@@ -66,6 +71,10 @@ fn main() {
 
     eprintln!("Computing bvh tree...");
     let bvh_tree = BvhNode::new_from_hittables(hittables);
+    eprintln!(
+        "BVH bounding box:\n  x={:?}\n  y={:?}\n  z={:?}",
+        bvh_tree.bbox.x, bvh_tree.bbox.y, bvh_tree.bbox.z
+    );
 
     eprintln!("Rendering...");
     camera.render_ppm(&mut stdout(), &bvh_tree);
@@ -526,43 +535,6 @@ pub fn cornell_box_glass_cuboids() -> (Vec<Hittable>, Camera) {
             .rotate(15.0)
             .translate(v!(25, 25, 25))
             .translate(v!(265, 0, 295)),
-    );
-
-    (hittables, camera)
-}
-
-pub fn mesh() -> (Vec<Hittable>, Camera) {
-    // Camera
-    let s = Scene::try_from_file().unwrap_or_default();
-    let v_up = v!(0, 1, 0);
-    let defocus_angle = 0.0;
-    let focus_dist = 10.0;
-
-    let camera = Camera::new(
-        s.aspect_ratio,
-        s.image_width,
-        s.samples_per_pixel,
-        s.max_bounces,
-        v!(s.bg[0], s.bg[1], s.bg[2]),
-        s.fov,
-        p!(s.from[0], s.from[1], s.from[2]),
-        p!(s.at[0], s.at[1], s.at[2]),
-        v_up,
-        defocus_angle,
-        focus_dist,
-    );
-
-    // Contents
-    let mut hittables = s.load_mesh();
-
-    let light = Material::diffuse_light(Color::grey(s.light_str));
-    hittables.push(
-        Sphere::new(
-            p!(s.light_pos[0], s.light_pos[1], s.light_pos[2]),
-            s.light_r,
-            light,
-        )
-        .into(),
     );
 
     (hittables, camera)

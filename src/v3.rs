@@ -99,6 +99,12 @@ impl V3 {
     }
 }
 
+impl From<[f64; 3]> for V3 {
+    fn from(v: [f64; 3]) -> Self {
+        V3::new(v[0], v[1], v[2])
+    }
+}
+
 impl Neg for V3 {
     type Output = V3;
 

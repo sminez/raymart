@@ -5,7 +5,9 @@ use crate::{
     bbox::AABBox,
     hit::{HitRecord, Hittable, Interval, Sphere},
     material::Material,
-    Color, Ray, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, V3,
+    p,
+    ray::Camera,
+    v, Ray, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, V3,
 };
 use serde::Deserialize;
 use std::fs;
@@ -18,25 +20,73 @@ macro_rules! pt {
     }};
 }
 
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase", tag = "kind")]
+pub enum MatSpec {
+    Solid { color: [f64; 3] },
+    Metal { color: [f64; 3], fuzz: f64 },
+    Glass { ref_index: f64 },
+    Isotropic { color: [f64; 3] },
+    Light { color: [f64; 3] },
+}
+
+impl From<MatSpec> for Material {
+    fn from(m: MatSpec) -> Self {
+        match m {
+            MatSpec::Solid { color } => Material::solid_color(color.into()),
+            MatSpec::Metal { color, fuzz } => Material::metal(color.into(), fuzz),
+            MatSpec::Glass { ref_index } => Material::dielectric(ref_index),
+            MatSpec::Isotropic { color } => Material::isotropic(color.into()),
+            MatSpec::Light { color } => Material::diffuse_light(color.into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Mesh {
+    pub path: String,
+    pub material: MatSpec,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase", tag = "kind")]
+pub enum ObjSpec {
+    Sphere {
+        center: [f64; 3],
+        r: f64,
+        material: MatSpec,
+    },
+}
+
+impl From<ObjSpec> for Hittable {
+    fn from(obj: ObjSpec) -> Self {
+        match obj {
+            ObjSpec::Sphere {
+                center,
+                r,
+                material,
+            } => Sphere::new(center.into(), r, material.into()).into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Scene {
+    // sim
     pub samples_per_pixel: u16,
     pub max_bounces: u8,
-    pub image_width: u16,
-    pub aspect_ratio: f64,
     // camera
     pub fov: f64,
+    pub image_width: u16,
+    pub aspect_ratio: f64,
     pub from: [f64; 3],
     pub at: [f64; 3],
-    // mesh
-    pub mesh: String,
-    pub point_radius: f64,
+    // hittables
     pub as_points: bool,
-    pub color: [f64; 3],
+    pub point_radius: f64,
+    pub meshes: Vec<Mesh>,
+    pub objects: Vec<ObjSpec>,
     // light
-    pub light_pos: [f64; 3],
-    pub light_str: f64,
-    pub light_r: f64,
     pub bg: [f64; 3],
 }
 
@@ -48,15 +98,23 @@ impl Default for Scene {
             image_width: IMAGE_WIDTH,
             aspect_ratio: 1.0,
             fov: 40.0,
-            from: [1.0, 0.0, -0.5],
+            from: [1.2, 0.2, -0.85],
             at: [0.0, 0.0, 0.0],
-            mesh: "assets/Dragon_8K.obj".to_string(),
-            point_radius: 0.001,
             as_points: false,
-            color: [0.53, 0.53, 0.53],
-            light_pos: [1.0, 1.0, 1.0],
-            light_str: 25.0,
-            light_r: 1.0,
+            point_radius: 0.001,
+            meshes: vec![Mesh {
+                path: "assets/Dragon_8K.obj".to_string(),
+                material: MatSpec::Solid {
+                    color: [0.53, 0.53, 0.53],
+                },
+            }],
+            objects: vec![ObjSpec::Sphere {
+                center: [1.0, 1.0, 1.0],
+                r: 1.0,
+                material: MatSpec::Light {
+                    color: [25.0, 25.0, 25.0],
+                },
+            }],
             bg: [0.7, 0.8, 1.0],
         }
     }
@@ -66,39 +124,66 @@ impl Scene {
     pub fn try_from_file() -> Option<Self> {
         let s = fs::read_to_string("scene.json").ok()?;
 
-        serde_json::from_str(&s).ok()
+        Some(serde_json::from_str(&s).unwrap())
     }
 
-    pub fn load_mesh(&self) -> Vec<Hittable> {
-        let (models, _) = load_obj(&self.mesh, &GPU_LOAD_OPTIONS).unwrap();
+    pub fn load_scene(&self) -> (Vec<Hittable>, Camera) {
         let mut hittables = Vec::new();
-        let mat = Material::solid_color(Color::new(self.color[0], self.color[1], self.color[2]));
 
-        for m in models {
-            let ps = &m.mesh.positions;
-            let ix = &m.mesh.indices;
+        for mesh in self.meshes.iter() {
+            let (models, _) = load_obj(&mesh.path, &GPU_LOAD_OPTIONS).unwrap();
+            let mat: Material = mesh.material.into();
 
-            for i in 0..ix.len() / 3 {
-                let a = pt!(ps, ix, i * 3);
-                let b = pt!(ps, ix, i * 3 + 1);
-                let c = pt!(ps, ix, i * 3 + 2);
+            for m in models {
+                let ps = &m.mesh.positions;
+                let ix = &m.mesh.indices;
 
-                if self.as_points {
-                    hittables.extend(
-                        [a, b, c]
-                            .into_iter()
-                            .map(|p| Hittable::from(Sphere::new(p, self.point_radius, mat))),
-                    );
-                } else {
-                    hittables.push(Triangle::new(a, b, c, mat).into());
+                for i in 0..ix.len() / 3 {
+                    let a = pt!(ps, ix, i * 3);
+                    let b = pt!(ps, ix, i * 3 + 1);
+                    let c = pt!(ps, ix, i * 3 + 2);
+
+                    if self.as_points {
+                        hittables.extend(
+                            [a, b, c]
+                                .into_iter()
+                                .map(|p| Hittable::from(Sphere::new(p, self.point_radius, mat))),
+                        );
+                    } else {
+                        hittables.push(Triangle::new(a, b, c, mat).into());
+                    }
                 }
-            }
 
-            eprintln!("n vertices  = {}", ix.len());
-            eprintln!("n hittables = {}", hittables.len());
+                eprintln!("n vertices  = {}", ix.len());
+                eprintln!("n hittables = {}", hittables.len());
+            }
         }
 
-        hittables
+        for obj in self.objects.iter() {
+            hittables.push((*obj).into());
+        }
+
+        let v_up = v!(0, 1, 0);
+        let defocus_angle = 0.0;
+        let focus_dist = 10.0;
+        let look_from = p!(self.from[0], self.from[1], self.from[2]);
+        let look_at = p!(self.at[0], self.at[1], self.at[2]);
+
+        let camera = Camera::new(
+            self.aspect_ratio,
+            self.image_width,
+            self.samples_per_pixel,
+            self.max_bounces,
+            v!(self.bg[0], self.bg[1], self.bg[2]),
+            self.fov,
+            look_from,
+            look_at,
+            v_up,
+            defocus_angle,
+            focus_dist,
+        );
+
+        (hittables, camera)
     }
 }
 

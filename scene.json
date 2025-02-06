@@ -1,18 +1,45 @@
 {
-    "fov": 40.0,
-    "aspect_ratio": 1.0,
-    "samples_per_pixel": 1500,
-    "max_bounces": 50,
-    "image_width": 800,
-    "as_points": false,
-    "light_pos": [1.0, 1.0, -1.5],
-    "light_str": 4.0,
-    "light_r": 0.7,
-    "bg": [0.0, 0.0, 0.0],
+  "fov": 40.0,
+  "aspect_ratio": 1.0,
+  "samples_per_pixel": 1500,
+  "max_bounces": 50,
+  "image_width": 1000,
+  "from": [1.2, 0.2, -0.85],
+  "at": [0.05, 0.05, -0.08],
+  "bg": [0.0, 0.0, 0.0],
 
-    "from": [1.6, 0.5, -0.65],
-    "at": [0.05, 0.05, 0.02],
-    "mesh": "assets/Dragon_8K.obj",
-    "point_radius": 0.005,
-    "color": [0.9, 0.5, 0.3]
+  "as_points": false,
+  "point_radius": 0.005,
+
+  "meshes": [
+    {
+      "path": "assets/Dragon_8K.obj",
+      "material": {
+        "kind": "solid",
+        "color": [0.9, 0.2, 0.1]
+      }
+    }
+  ],
+
+  "objects": [
+    {
+      "kind": "sphere",
+      "center": [-2.0, 1.0, -0.8],
+      "oldcenter": [2.4, 1.4, 1.0],
+      "r": 0.7,
+      "material": {
+        "kind": "light",
+        "color": [10.5, 10.5, 10.5]
+      }
+    },
+    {
+      "kind": "sphere",
+      "center": [0.0, -100.0, -1.0],
+      "r": 99.7,
+      "material": {
+        "kind": "solid",
+        "color": [0.8, 0.6, 0.2]
+      }
+    }
+  ]
 }
