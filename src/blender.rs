@@ -2,12 +2,12 @@
 //!   https://docs.blender.org/manual/en/dev/modeling/meshes/introduction.html
 //!   https://en.wikipedia.org/wiki/Wavefront_.obj_file
 use crate::{
-    bbox::AABBox,
-    hit::{HitRecord, Hittable, Interval, Sphere},
+    bbox::BvhNode,
+    hit::{cuboid, ConstantMedium, Hittable, Quad, Sphere, Triangle},
     material::Material,
     p,
     ray::Camera,
-    v, Color, Ray, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, V3,
+    v, Color, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, V3,
 };
 use serde::Deserialize;
 use std::{collections::HashMap, fs};
@@ -41,9 +41,22 @@ impl From<ColorSpec> for Color {
 pub enum MatSpec {
     Solid { color: ColorSpec },
     Metal { color: ColorSpec, fuzz: f64 },
-    Glass { ref_index: f64 },
+    Dielectric { ref_index: f64 },
     Isotropic { color: ColorSpec },
     Light { color: ColorSpec },
+    Noise { scale: f64 },
+}
+
+impl MatSpec {
+    fn into_color(self) -> Color {
+        match self {
+            Self::Solid { color } => color.into(),
+            Self::Metal { color, .. } => color.into(),
+            Self::Isotropic { color, .. } => color.into(),
+            Self::Light { color } => color.into(),
+            _ => panic!("no color associated with material"),
+        }
+    }
 }
 
 impl From<MatSpec> for Material {
@@ -51,37 +64,188 @@ impl From<MatSpec> for Material {
         match m {
             MatSpec::Solid { color } => Material::solid_color(color.into()),
             MatSpec::Metal { color, fuzz } => Material::metal(color.into(), fuzz),
-            MatSpec::Glass { ref_index } => Material::dielectric(ref_index),
+            MatSpec::Dielectric { ref_index } => Material::dielectric(ref_index),
             MatSpec::Isotropic { color } => Material::isotropic(color.into()),
             MatSpec::Light { color } => Material::diffuse_light(color.into()),
+            MatSpec::Noise { scale } => Material::noise(scale),
         }
     }
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct HitMeta {
+    #[serde(default)]
+    rotate: Option<f64>,
+    #[serde(default)]
+    translate: Option<[f64; 3]>,
+    #[serde(default)]
+    density: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Mesh {
     pub path: String,
     pub material: String,
+    #[serde(flatten)]
+    pub meta: HitMeta,
+}
+
+impl Mesh {
+    fn color(&self, mats: &HashMap<String, MatSpec>) -> Color {
+        mats.get(&self.material).unwrap().into_color()
+    }
+
+    fn as_hittable(
+        &self,
+        mats: &HashMap<String, MatSpec>,
+        as_points: bool,
+        point_radius: f64,
+    ) -> Hittable {
+        let (models, _) = load_obj(&self.path, &GPU_LOAD_OPTIONS).unwrap();
+        let mat: Material = (*mats.get(&self.material).unwrap()).into();
+        let mut objects = Vec::with_capacity(models.iter().map(|m| m.mesh.indices.len()).sum());
+
+        eprintln!("Loading meshes from {:?}...", self.path);
+        for m in models {
+            eprintln!("  mesh name = {:?}", m.name);
+            let ps = &m.mesh.positions;
+            let ix = &m.mesh.indices;
+
+            for i in 0..ix.len() / 3 {
+                let a = pt!(ps, ix, i * 3);
+                let b = pt!(ps, ix, i * 3 + 1);
+                let c = pt!(ps, ix, i * 3 + 2);
+
+                if as_points {
+                    objects.extend(
+                        [a, b, c]
+                            .into_iter()
+                            .map(|p| Hittable::from(Sphere::new(p, point_radius, mat))),
+                    );
+                } else {
+                    objects.push(Triangle::new(a, b, c, mat).into());
+                }
+            }
+
+            eprintln!("    n vertices  = {}", ix.len());
+            eprintln!("    n hittables = {}", objects.len());
+        }
+
+        let bvh = BvhNode::new(objects);
+        eprintln!("  BVH tree depth = {}", bvh.max_depth());
+        let mut h = Hittable::Bvh(Box::leak(Box::new(bvh)));
+
+        if let Some(angle) = self.meta.rotate {
+            h = h.rotate(angle);
+        }
+        if let Some(v) = self.meta.translate {
+            h = h.translate(v.into());
+        }
+        if let Some(density) = self.meta.density {
+            h = ConstantMedium::new(h, density, self.color(mats)).into();
+        }
+
+        h
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ObjSpec {
+    #[serde(flatten)]
+    hittable: HittableSpec,
+    #[serde(flatten)]
+    pub meta: HitMeta,
+}
+
+impl ObjSpec {
+    fn as_hittable(&self, mats: &HashMap<String, MatSpec>) -> Hittable {
+        let mut h = self.hittable.as_hittable(mats);
+        if let Some(angle) = self.meta.rotate {
+            h = h.rotate(angle);
+        }
+        if let Some(v) = self.meta.translate {
+            h = h.translate(v.into());
+        }
+        if let Some(density) = self.meta.density {
+            h = ConstantMedium::new(h, density, self.hittable.color(mats)).into();
+        }
+
+        h
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "lowercase", tag = "kind")]
-pub enum ObjSpec {
+pub enum HittableSpec {
     Sphere {
         center: [f64; 3],
         r: f64,
         material: String,
     },
+    Box {
+        vert1: [f64; 3],
+        vert2: [f64; 3],
+        material: String,
+    },
+    Quad {
+        q: [f64; 3],
+        u: [f64; 3],
+        v: [f64; 3],
+        material: String,
+    },
+    Triangle {
+        a: [f64; 3],
+        b: [f64; 3],
+        c: [f64; 3],
+        material: String,
+    },
 }
 
-impl ObjSpec {
+impl HittableSpec {
+    fn color(&self, mats: &HashMap<String, MatSpec>) -> Color {
+        let mat = match self {
+            Self::Sphere { material, .. } => mats.get(material).unwrap(),
+            Self::Box { material, .. } => mats.get(material).unwrap(),
+            Self::Quad { material, .. } => mats.get(material).unwrap(),
+            Self::Triangle { material, .. } => mats.get(material).unwrap(),
+        };
+
+        mat.into_color()
+    }
+
     fn as_hittable(&self, mats: &HashMap<String, MatSpec>) -> Hittable {
         match self {
-            ObjSpec::Sphere {
+            Self::Sphere {
                 center,
                 r,
                 material,
             } => Sphere::new((*center).into(), *r, (*mats.get(material).unwrap()).into()).into(),
+
+            Self::Box {
+                vert1,
+                vert2,
+                material,
+            } => cuboid(
+                (*vert1).into(),
+                (*vert2).into(),
+                (*mats.get(material).unwrap()).into(),
+            ),
+
+            Self::Quad { q, u, v, material } => Quad::new(
+                (*q).into(),
+                (*u).into(),
+                (*v).into(),
+                (*mats.get(material).unwrap()).into(),
+            )
+            .into(),
+
+            Self::Triangle { a, b, c, material } => Triangle::new(
+                (*a).into(),
+                (*b).into(),
+                (*c).into(),
+                (*mats.get(material).unwrap()).into(),
+            )
+            .into(),
         }
     }
 }
@@ -141,11 +305,15 @@ impl Default for Scene {
             meshes: vec![Mesh {
                 path: "assets/Dragon_8K.obj".to_string(),
                 material: "grey".to_string(),
+                meta: HitMeta::default(),
             }],
-            objects: vec![ObjSpec::Sphere {
-                center: [1.0, 1.0, 1.0],
-                r: 1.0,
-                material: "light".to_string(),
+            objects: vec![ObjSpec {
+                hittable: HittableSpec::Sphere {
+                    center: [1.0, 1.0, 1.0],
+                    r: 1.0,
+                    material: "light".to_string(),
+                },
+                meta: HitMeta::default(),
             }],
             bg: ColorSpec::RGB([0.7, 0.8, 1.0]),
         }
@@ -163,36 +331,11 @@ impl Scene {
         let mut hittables = Vec::new();
 
         for mesh in self.meshes.iter() {
-            let (models, _) = load_obj(&mesh.path, &GPU_LOAD_OPTIONS).unwrap();
-            let mat: Material = (*self.materials.get(&mesh.material).unwrap()).into();
-
-            for m in models {
-                let ps = &m.mesh.positions;
-                let ix = &m.mesh.indices;
-
-                for i in 0..ix.len() / 3 {
-                    let a = pt!(ps, ix, i * 3);
-                    let b = pt!(ps, ix, i * 3 + 1);
-                    let c = pt!(ps, ix, i * 3 + 2);
-
-                    if self.as_points {
-                        hittables.extend(
-                            [a, b, c]
-                                .into_iter()
-                                .map(|p| Hittable::from(Sphere::new(p, self.point_radius, mat))),
-                        );
-                    } else {
-                        hittables.push(Triangle::new(a, b, c, mat).into());
-                    }
-                }
-
-                eprintln!("n vertices  = {}", ix.len());
-                eprintln!("n hittables = {}", hittables.len());
-            }
+            hittables.push(mesh.as_hittable(&self.materials, self.as_points, self.point_radius));
         }
 
-        for obj in self.objects.iter() {
-            hittables.push((*obj).as_hittable(&self.materials));
+        for obj in self.objects.clone().into_iter() {
+            hittables.push(obj.as_hittable(&self.materials));
         }
 
         let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);
@@ -216,66 +359,5 @@ impl Scene {
         );
 
         (hittables, camera)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Triangle {
-    a: P3,
-    ab: V3,
-    ac: V3,
-    normal: V3,
-    mat: Material,
-    pub bbox: AABBox,
-}
-
-impl Triangle {
-    pub fn new(a: P3, b: P3, c: P3, mat: Material) -> Triangle {
-        let bbox1 = AABBox::new_from_points(a, b);
-        let bbox2 = AABBox::new_from_points(a, c);
-        let ab = b - a;
-        let ac = c - a;
-        let normal = ab.cross(&ac);
-
-        Self {
-            a,
-            ab,
-            ac,
-            normal,
-            mat,
-            bbox: AABBox::new_enclosing(bbox1, bbox2),
-        }
-    }
-
-    // Calculate the intersection of a ray with a triangle using the Möller–Trumbore algorithm
-    //   https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        // If r . normal is 0 then the ray is parallel to the triangle plane and no hit is possible
-        let det = -(r.dir.dot(&self.normal));
-        if det.abs() < 1e-8 {
-            return None;
-        }
-
-        let inv_det = 1.0 / det;
-        let ao = r.orig - self.a;
-        let r_x_ao = ao.cross(&r.dir);
-
-        // hit point needs to be contained by the ray interval
-        let t = ao.dot(&self.normal) * inv_det;
-        if !ray_t.surrounds(t) {
-            return None;
-        }
-
-        // barycentric coords of the intersection point
-        //   https://en.wikipedia.org/wiki/Barycentric_coordinate_system
-        let u = self.ac.dot(&r_x_ao) * inv_det;
-        let v = -self.ab.dot(&r_x_ao) * inv_det;
-        if u < 0.0 || v < 0.0 || u + v > 1.0 {
-            return None;
-        }
-
-        let p = r.at(t);
-
-        Some(HitRecord::new(t, p, self.normal, r, self.mat, u, v))
     }
 }

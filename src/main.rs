@@ -73,8 +73,11 @@ fn main() {
     eprintln!("Computing bvh tree...");
     let bvh_tree = BvhNode::new_from_hittables(hittables);
     eprintln!(
-        "BVH bounding box:\n  x={:?}\n  y={:?}\n  z={:?}",
-        bvh_tree.bbox.x, bvh_tree.bbox.y, bvh_tree.bbox.z
+        "BVH bounding box:\n  x={:?}\n  y={:?}\n  z={:?}\n  tree depth={}",
+        bvh_tree.bbox.x,
+        bvh_tree.bbox.y,
+        bvh_tree.bbox.z,
+        bvh_tree.max_depth()
     );
 
     eprintln!("Rendering...");

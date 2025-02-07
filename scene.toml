@@ -40,6 +40,7 @@ fuzz = 1.0
 [[meshes]]
 path = "assets/Dragon_8K.obj"
 material = "red"
+rotate = 15.0
 
 
 # Additional scene objects

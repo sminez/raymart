@@ -214,6 +214,15 @@ impl BvhNode {
         Self { left, right, bbox }
     }
 
+    pub fn max_depth(&self) -> usize {
+        match (&self.left, &self.right) {
+            (BvhInner::Leaf(_), BvhInner::Leaf(_)) => 1,
+            (BvhInner::Node(n), BvhInner::Leaf(_)) => n.max_depth() + 1,
+            (BvhInner::Leaf(_), BvhInner::Node(m)) => m.max_depth() + 1,
+            (BvhInner::Node(n), BvhInner::Node(m)) => n.max_depth().max(m.max_depth()) + 1,
+        }
+    }
+
     pub fn hits(&self, r: &Ray, mut ray_t: Interval) -> Option<HitRecord> {
         if !self.bbox.hits(r, ray_t) {
             return None;

@@ -1,8 +1,7 @@
 use rand::random_range;
 
 use crate::{
-    bbox::AABBox,
-    blender::Triangle,
+    bbox::{AABBox, BvhNode},
     material::{Material, Texture},
     Color, Ray, P3, V3,
 };
@@ -139,6 +138,7 @@ pub enum Hittable {
     ConstantMedium(ConstantMedium),
     // Compound
     List(HittableList),
+    Bvh(&'static BvhNode),
     // Transforms
     Translate(Translate),
     Rotate(Rotate),
@@ -161,6 +161,7 @@ impl Hittable {
             Self::Triangle(t) => t.hits(r, ray_t),
             Self::ConstantMedium(c) => c.hits(r, ray_t),
             Self::List(l) => l.hits(r, ray_t),
+            Self::Bvh(b) => b.hits(r, ray_t),
             Self::Translate(t) => t.hits(r, ray_t),
             Self::Rotate(ro) => ro.hits(r, ray_t),
         }
@@ -174,6 +175,7 @@ impl Hittable {
             Self::Triangle(t) => t.bbox,
             Self::ConstantMedium(c) => c.bounding_box(),
             Self::List(l) => l.bbox,
+            Self::Bvh(b) => b.bbox,
             Self::Translate(t) => t.bbox,
             Self::Rotate(r) => r.bbox,
         }
@@ -299,6 +301,67 @@ impl Sphere {
         let v = theta * INV_PI;
 
         Some(HitRecord::new(root, p, outward_normal, r, self.mat, u, v))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Triangle {
+    a: P3,
+    ab: V3,
+    ac: V3,
+    normal: V3,
+    mat: Material,
+    pub bbox: AABBox,
+}
+
+impl Triangle {
+    pub fn new(a: P3, b: P3, c: P3, mat: Material) -> Triangle {
+        let bbox1 = AABBox::new_from_points(a, b);
+        let bbox2 = AABBox::new_from_points(a, c);
+        let ab = b - a;
+        let ac = c - a;
+        let normal = ab.cross(&ac);
+
+        Self {
+            a,
+            ab,
+            ac,
+            normal,
+            mat,
+            bbox: AABBox::new_enclosing(bbox1, bbox2),
+        }
+    }
+
+    // Calculate the intersection of a ray with a triangle using the Möller–Trumbore algorithm
+    //   https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        // If r . normal is 0 then the ray is parallel to the triangle plane and no hit is possible
+        let det = -(r.dir.dot(&self.normal));
+        if det.abs() < 1e-8 {
+            return None;
+        }
+
+        let inv_det = 1.0 / det;
+        let ao = r.orig - self.a;
+        let r_x_ao = ao.cross(&r.dir);
+
+        // hit point needs to be contained by the ray interval
+        let t = ao.dot(&self.normal) * inv_det;
+        if !ray_t.surrounds(t) {
+            return None;
+        }
+
+        // barycentric coords of the intersection point
+        //   https://en.wikipedia.org/wiki/Barycentric_coordinate_system
+        let u = self.ac.dot(&r_x_ao) * inv_det;
+        let v = -self.ab.dot(&r_x_ao) * inv_det;
+        if u < 0.0 || v < 0.0 || u + v > 1.0 {
+            return None;
+        }
+
+        let p = r.at(t);
+
+        Some(HitRecord::new(t, p, self.normal, r, self.mat, u, v))
     }
 }
 
