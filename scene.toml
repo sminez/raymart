@@ -15,12 +15,31 @@ v_up = [0.0, 1.0, 0.0]
 as_points = false
 point_radius = 0.005
 
+
+# Materials for meshes and objects
+[materials.light]
+kind = "light"
+color = 16.5
+
+[materials.red]
+kind = "solid"
+color = [0.9, 0.2, 0.1]
+
+[materials.gold]
+kind = "metal"
+color = [0.8, 0.6, 0.2]
+fuzz = 0.01
+
+[materials.silver]
+kind = "metal"
+color = [0.2, 0.3, 0.8]
+fuzz = 1.0
+
+
 # .obj meshes (only vertices are used)
 [[meshes]]
 path = "assets/Dragon_8K.obj"
-[meshes.material]
-kind = "solid"
-color = [0.9, 0.2, 0.1]
+material = "red"
 
 
 # Additional scene objects
@@ -30,24 +49,18 @@ color = [0.9, 0.2, 0.1]
 kind = "sphere"
 center = [1.4, 0.9, -0.8]
 r = 0.7
-material = { kind = "light", color = 16.5 }
+material = "light"
 
 # ground
 [[objects]]
 kind = "sphere"
 center = [0.0, -100.0, -1.0]
 r = 99.7
-[objects.material]
-kind = "metal"
-color = [0.8, 0.6, 0.2]
-fuzz = 0.01
+material = "gold"
 
 # metalic shell
 [[objects]]
 kind = "sphere"
 center = [0.0, -100.0, -1.0]
 r = 100.9
-[objects.material]
-kind = "metal"
-color = [0.2, 0.3, 0.8]
-fuzz = 1.0
+material = "silver"

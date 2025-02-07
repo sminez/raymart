@@ -10,7 +10,7 @@ use crate::{
     v, Color, Ray, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, V3,
 };
 use serde::Deserialize;
-use std::fs;
+use std::{collections::HashMap, fs};
 use tobj::{load_obj, GPU_LOAD_OPTIONS};
 
 macro_rules! pt {
@@ -61,27 +61,27 @@ impl From<MatSpec> for Material {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Mesh {
     pub path: String,
-    pub material: MatSpec,
+    pub material: String,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "lowercase", tag = "kind")]
 pub enum ObjSpec {
     Sphere {
         center: [f64; 3],
         r: f64,
-        material: MatSpec,
+        material: String,
     },
 }
 
-impl From<ObjSpec> for Hittable {
-    fn from(obj: ObjSpec) -> Self {
-        match obj {
+impl ObjSpec {
+    fn as_hittable(&self, mats: &HashMap<String, MatSpec>) -> Hittable {
+        match self {
             ObjSpec::Sphere {
                 center,
                 r,
                 material,
-            } => Sphere::new(center.into(), r, material.into()).into(),
+            } => Sphere::new((*center).into(), *r, (*mats.get(material).unwrap()).into()).into(),
         }
     }
 }
@@ -101,6 +101,7 @@ pub struct Scene {
     // hittables
     pub as_points: bool,
     pub point_radius: f64,
+    pub materials: HashMap<String, MatSpec>,
     pub meshes: Vec<Mesh>,
     pub objects: Vec<ObjSpec>,
     // light
@@ -120,18 +121,31 @@ impl Default for Scene {
             v_up: [0.0, 1.0, 0.0],
             as_points: false,
             point_radius: 0.001,
+            materials: [
+                (
+                    "grey",
+                    MatSpec::Solid {
+                        color: ColorSpec::Grey(0.5),
+                    },
+                ),
+                (
+                    "light",
+                    MatSpec::Light {
+                        color: ColorSpec::Grey(25.0),
+                    },
+                ),
+            ]
+            .into_iter()
+            .map(|(s, m)| (s.to_string(), m))
+            .collect(),
             meshes: vec![Mesh {
                 path: "assets/Dragon_8K.obj".to_string(),
-                material: MatSpec::Solid {
-                    color: ColorSpec::Grey(0.53),
-                },
+                material: "grey".to_string(),
             }],
             objects: vec![ObjSpec::Sphere {
                 center: [1.0, 1.0, 1.0],
                 r: 1.0,
-                material: MatSpec::Light {
-                    color: ColorSpec::Grey(25.0),
-                },
+                material: "light".to_string(),
             }],
             bg: ColorSpec::RGB([0.7, 0.8, 1.0]),
         }
@@ -150,7 +164,7 @@ impl Scene {
 
         for mesh in self.meshes.iter() {
             let (models, _) = load_obj(&mesh.path, &GPU_LOAD_OPTIONS).unwrap();
-            let mat: Material = mesh.material.into();
+            let mat: Material = (*self.materials.get(&mesh.material).unwrap()).into();
 
             for m in models {
                 let ps = &m.mesh.positions;
@@ -178,7 +192,7 @@ impl Scene {
         }
 
         for obj in self.objects.iter() {
-            hittables.push((*obj).into());
+            hittables.push((*obj).as_hittable(&self.materials));
         }
 
         let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);
