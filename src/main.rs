@@ -8,7 +8,7 @@ pub mod ray;
 pub mod v3;
 
 use rand::random_range;
-use std::{env, io::stdout};
+use std::env;
 
 use bbox::BvhNode;
 use blender::Scene;
@@ -24,6 +24,7 @@ pub const IMAGE_WIDTH: u16 = 1000; // image width in pixels
 pub const SAMPLES_PER_PIXEL: u16 = 4500; // number of random samples per pixel
 pub const DEBUG_SAMPLES_PER_PIXEL: u16 = 10; // number of random samples per pixel
 pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
+pub const SCENE_PATH: &str = "scene.toml";
 
 #[macro_export]
 macro_rules! p {
@@ -40,7 +41,7 @@ macro_rules! v {
 }
 
 fn main() {
-    let sim = env::args().nth(1).unwrap_or_else(|| "default".to_string());
+    let sim = env::args().nth(1).unwrap_or_else(|| SCENE_PATH.to_string());
     let debug_sampling = env::var("DEBUG_SAMPLING").is_ok();
     eprintln!("sim = {sim}\ndebug sampling = {debug_sampling}");
 
@@ -59,8 +60,8 @@ fn main() {
         "cornell-cuboids" => cornell_box_cuboids(),
         "glass-cornell-cuboids" => cornell_box_glass_cuboids(),
         "smoke-cornell-cuboids" => cornell_box_smoke_cuboids(),
-        _ => {
-            let s = Scene::try_from_file().unwrap_or_default();
+        path => {
+            let s = Scene::try_from_file(path).unwrap_or_default();
             s.load_scene()
         }
     };
@@ -77,7 +78,7 @@ fn main() {
     );
 
     eprintln!("Rendering...");
-    camera.render_ppm(&mut stdout(), &bvh_tree);
+    camera.render_ppm(&bvh_tree);
 
     eprintln!("\nDone");
 }

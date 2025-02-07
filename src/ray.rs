@@ -6,7 +6,7 @@ use crate::{
 };
 use rand::random_range;
 use rayon::prelude::*;
-use std::{cmp::max, io::Write, time::Instant};
+use std::{cmp::max, fs, time::Instant};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Camera {
@@ -91,37 +91,100 @@ impl Camera {
         self.pixel_sample_scale = 1.0 / samples_pp as f64;
     }
 
-    pub fn render_ppm(&self, w: &mut impl Write, world: &BvhNode) {
-        if let Err(e) = writeln!(w, "P3\n{} {}\n255", self.image_width, self.image_height) {
-            panic!("unable to write ppm header: {e}");
+    // pub fn render_ppm(&self, w: &mut impl Write, world: &BvhNode) {
+    //     if let Err(e) = writeln!(w, "P3\n{} {}\n255", self.image_width, self.image_height) {
+    //         panic!("unable to write ppm header: {e}");
+    //     }
+
+    //     let start = Instant::now();
+    //     let pixels: Vec<Color> = (0..self.image_height)
+    //         .into_par_iter()
+    //         .flat_map(move |j| {
+    //             let res = (0..self.image_width).into_par_iter().map(move |i| {
+    //                 let (fi, fj) = (i as f64, j as f64);
+    //                 let color = (0..self.samples_pp)
+    //                     .into_par_iter()
+    //                     .map(|_| self.ray_color(self.get_ray(fi, fj), world))
+    //                     .reduce(Color::default, |mut a, b| {
+    //                         a += b;
+    //                         a
+    //                     });
+
+    //                 color * self.pixel_sample_scale
+    //             });
+    //             eprint!(".");
+    //             res
+    //         })
+    //         .collect();
+
+    //     let s: String = pixels.into_iter().map(|c| c.ppm_string()).collect();
+    //     writeln!(w, "{s}").unwrap();
+
+    //     let render_time = Instant::now().duration_since(start);
+    //     eprintln!("\nRender time: {}s", render_time.as_secs());
+    // }
+
+    pub fn render_ppm(&self, world: &BvhNode) {
+        let start = Instant::now();
+
+        let (iterations, pp) = if self.samples_pp > 100 {
+            (self.samples_pp / 100, 100)
+        } else {
+            (1, self.samples_pp)
+        };
+        let mut pixels = Vec::new();
+
+        for i in 1..=iterations {
+            let scale = 1.0 / (i * pp) as f64;
+            let new_pixels = self.render_pass(pp, world);
+
+            let render_time = Instant::now().duration_since(start);
+            eprintln!(
+                "\nRender time so far ({i}/{iterations}): {}s",
+                render_time.as_secs()
+            );
+
+            let scaled = new_pixels.into_par_iter().map(|p| p * scale).collect();
+            if pixels.is_empty() {
+                pixels = scaled;
+            } else {
+                pixels = pixels
+                    .into_iter()
+                    .zip(scaled.into_iter())
+                    .map(|(prev, p)| (p * 1.0 / pp as f64) + prev)
+                    .collect()
+            }
+
+            let s: String = pixels.iter().map(|c| c.ppm_string()).collect();
+            fs::write(
+                "test.ppm",
+                format!("P3\n{} {}\n255\n{s}", self.image_width, self.image_height),
+            )
+            .unwrap();
         }
 
-        let start = Instant::now();
-        let pixels: Vec<Color> = (0..self.image_height)
+        let render_time = Instant::now().duration_since(start);
+        eprintln!("\nRender time: {}s", render_time.as_secs());
+    }
+
+    fn render_pass(&self, samples_pp: u16, world: &BvhNode) -> Vec<Color> {
+        (0..self.image_height)
             .into_par_iter()
             .flat_map(move |j| {
                 let res = (0..self.image_width).into_par_iter().map(move |i| {
                     let (fi, fj) = (i as f64, j as f64);
-                    let color = (0..self.samples_pp)
+                    (0..samples_pp)
                         .into_par_iter()
                         .map(|_| self.ray_color(self.get_ray(fi, fj), world))
                         .reduce(Color::default, |mut a, b| {
                             a += b;
                             a
-                        });
-
-                    color * self.pixel_sample_scale
+                        })
                 });
                 eprint!(".");
                 res
             })
-            .collect();
-
-        let s: String = pixels.into_iter().map(|c| c.ppm_string()).collect();
-        writeln!(w, "{s}").unwrap();
-
-        let render_time = Instant::now().duration_since(start);
-        eprintln!("\nRender time: {}s", render_time.as_secs());
+            .collect()
     }
 
     /// Construct a camera ray originating from the defocus disk and directed at a randomly

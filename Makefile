@@ -7,7 +7,7 @@ debug-png:
 	convert test.ppm test.png
 
 watch:
-	echo scene.json | entr -ac make png
+	echo scene.toml | entr -ac make png
 
 scene:
 	./target/release/raymart $(SCENE) > test.ppm

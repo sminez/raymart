@@ -7,7 +7,7 @@ use crate::{
     material::Material,
     p,
     ray::Camera,
-    v, Ray, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, V3,
+    v, Color, Ray, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, V3,
 };
 use serde::Deserialize;
 use std::fs;
@@ -21,13 +21,29 @@ macro_rules! pt {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(untagged)]
+pub enum ColorSpec {
+    RGB([f64; 3]),
+    Grey(f64),
+}
+
+impl From<ColorSpec> for Color {
+    fn from(value: ColorSpec) -> Self {
+        match value {
+            ColorSpec::RGB([r, g, b]) => Color::new(r, g, b),
+            ColorSpec::Grey(v) => Color::grey(v),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase", tag = "kind")]
 pub enum MatSpec {
-    Solid { color: [f64; 3] },
-    Metal { color: [f64; 3], fuzz: f64 },
+    Solid { color: ColorSpec },
+    Metal { color: ColorSpec, fuzz: f64 },
     Glass { ref_index: f64 },
-    Isotropic { color: [f64; 3] },
-    Light { color: [f64; 3] },
+    Isotropic { color: ColorSpec },
+    Light { color: ColorSpec },
 }
 
 impl From<MatSpec> for Material {
@@ -81,13 +97,14 @@ pub struct Scene {
     pub aspect_ratio: f64,
     pub from: [f64; 3],
     pub at: [f64; 3],
+    pub v_up: [f64; 3],
     // hittables
     pub as_points: bool,
     pub point_radius: f64,
     pub meshes: Vec<Mesh>,
     pub objects: Vec<ObjSpec>,
     // light
-    pub bg: [f64; 3],
+    pub bg: ColorSpec,
 }
 
 impl Default for Scene {
@@ -100,31 +117,32 @@ impl Default for Scene {
             fov: 40.0,
             from: [1.2, 0.2, -0.85],
             at: [0.0, 0.0, 0.0],
+            v_up: [0.0, 1.0, 0.0],
             as_points: false,
             point_radius: 0.001,
             meshes: vec![Mesh {
                 path: "assets/Dragon_8K.obj".to_string(),
                 material: MatSpec::Solid {
-                    color: [0.53, 0.53, 0.53],
+                    color: ColorSpec::Grey(0.53),
                 },
             }],
             objects: vec![ObjSpec::Sphere {
                 center: [1.0, 1.0, 1.0],
                 r: 1.0,
                 material: MatSpec::Light {
-                    color: [25.0, 25.0, 25.0],
+                    color: ColorSpec::Grey(25.0),
                 },
             }],
-            bg: [0.7, 0.8, 1.0],
+            bg: ColorSpec::RGB([0.7, 0.8, 1.0]),
         }
     }
 }
 
 impl Scene {
-    pub fn try_from_file() -> Option<Self> {
-        let s = fs::read_to_string("scene.json").ok()?;
+    pub fn try_from_file(path: &str) -> Option<Self> {
+        let s = fs::read_to_string(path).ok()?;
 
-        Some(serde_json::from_str(&s).unwrap())
+        Some(toml::from_str(&s).unwrap())
     }
 
     pub fn load_scene(&self) -> (Vec<Hittable>, Camera) {
@@ -163,7 +181,7 @@ impl Scene {
             hittables.push((*obj).into());
         }
 
-        let v_up = v!(0, 1, 0);
+        let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);
         let defocus_angle = 0.0;
         let focus_dist = 10.0;
         let look_from = p!(self.from[0], self.from[1], self.from[2]);
@@ -174,7 +192,7 @@ impl Scene {
             self.image_width,
             self.samples_per_pixel,
             self.max_bounces,
-            v!(self.bg[0], self.bg[1], self.bg[2]),
+            self.bg.into(),
             self.fov,
             look_from,
             look_at,
