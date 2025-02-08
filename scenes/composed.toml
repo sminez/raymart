@@ -1,0 +1,159 @@
+# Scene configuraton
+samples_per_pixel = 800
+max_bounces = 50
+image_width = 1000
+bg = 0.01
+
+# Camera
+fov = 10.0
+aspect_ratio = 1.6
+from = [0.0, 1.0, 11.0]
+at = [0.0, 0.0, 0.0]
+v_up = [0.0, 1.0, 0.0]
+
+# Debug point view
+as_points = false
+point_radius = 0.005
+
+
+# Materials for meshes and objects
+[materials.ground]
+kind = "checker"
+scale = 0.32
+even = [0.5, 0.8, 0.2]
+odd = 0.9
+
+[materials.red]
+kind = "solid"
+color = [0.95, 0.15, 0.25]
+
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
+
+[materials.air]
+kind = "dielectric"
+ref_index = 0.769
+
+[materials.gold]
+kind = "metal"
+color = [0.8, 0.6, 0.2]
+fuzz = 0.02
+
+[materials.light]
+kind = "light"
+color = 2.0
+
+
+# Additional scene objects
+
+# ground
+[[objects]]
+kind = "sphere"
+center = [0.0, -100.5, -1.0]
+r = 100.0
+material = "ground"
+
+
+[[objects]]
+kind = "sphere"
+center = [0.0, 0.0, -1.0]
+r = 0.48
+material = "red"
+
+[[objects]]
+kind = "sphere"
+center = [0.0, 0.0, -1.0]
+r = 0.5
+material = "glass"
+
+
+[[objects]]
+kind = "sphere"
+center = [-1.0, 0.0, -1.2]
+r = 0.48
+material = "glass"
+
+[[objects]]
+kind = "sphere"
+center = [-1.0, 0.0, -1.2]
+r = 0.45
+material = "air"
+
+[[objects]]
+kind = "sphere"
+center = [-1.0, 0.0, -1.2]
+r = 0.42
+material = "glass"
+
+[[objects]]
+kind = "sphere"
+center = [-1.0, 0.0, -1.2]
+r = 0.24
+material = "light"
+
+
+[[objects]]
+kind = "sphere"
+center = [1.0, 0.0, -1.0]
+r = 0.48
+material = "gold"
+
+
+[[objects]]
+kind = "sphere"
+center = [0.4, -0.31, 1.0]
+r = 0.22
+material = "glass"
+
+[[objects]]
+kind = "sphere"
+center = [0.4, -0.31, 1.0]
+r = 0.1
+material = "light"
+
+
+[[objects]]
+kind = "sphere"
+center = [-0.4, -0.3, 1.0]
+r = 0.2
+material = "gold"
+
+
+[[objects]]
+kind = "sphere"
+center = [-0.7, -0.42, 1.2]
+r = 0.098
+material = "red"
+
+[[objects]]
+kind = "sphere"
+center = [-0.7, -0.42, 1.2]
+r = 0.1
+material = "glass"
+
+
+[[objects]]
+kind = "sphere"
+center = [-0.1, -0.43, 1.6]
+r = 0.098
+material = "red"
+
+[[objects]]
+kind = "sphere"
+center = [-0.1, -0.43, 1.6]
+r = 0.1
+material = "glass"
+
+
+[[objects]]
+kind = "sphere"
+center = [0.6, -0.44, 1.9]
+r = 0.098
+material = "red"
+
+[[objects]]
+kind = "sphere"
+center = [0.6, -0.44, 1.9]
+r = 0.1
+material = "glass"

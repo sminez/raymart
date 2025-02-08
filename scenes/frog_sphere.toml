@@ -1,0 +1,55 @@
+# Scene configuraton
+samples_per_pixel = 1000
+max_bounces = 50
+image_width = 800
+bg = [0.7, 0.8, 1.0]
+
+# Camera
+fov = 10.0
+aspect_ratio = 1.6
+from = [3.0, 1.0, 11.0]
+at = [0.0, 0.0, -1.0]
+v_up = [0.0, 1.0, 0.0]
+
+# Debug point view
+as_points = false
+point_radius = 0.005
+
+
+# Materials for meshes and objects
+[materials.ground]
+kind = "checker"
+scale = 0.32
+even = [0.5, 0.8, 0.2]
+odd = 0.9
+
+[materials.frog]
+kind = "image"
+path = "sadfrog.png"
+
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
+
+
+# Additional scene objects
+
+# ground
+[[objects]]
+kind = "sphere"
+center = [0.0, -100.5, -1.0]
+r = 100.0
+material = "ground"
+
+# frog
+[[objects]]
+kind = "sphere"
+center = [0.0, 0.0, -1.0]
+r = 0.48
+material = "frog"
+
+[[objects]]
+kind = "sphere"
+center = [0.0, 0.0, -1.0]
+r = 0.5
+material = "glass"

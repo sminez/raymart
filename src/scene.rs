@@ -7,7 +7,7 @@ use crate::{
     material::Material,
     p,
     ray::Camera,
-    v, Color, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, V3,
+    v, Color, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, STEP_SIZE, V3,
 };
 use serde::Deserialize;
 use std::{collections::HashMap, fs};
@@ -27,28 +27,51 @@ pub enum ColorSpec {
     Grey(f64),
 }
 
-impl From<ColorSpec> for Color {
-    fn from(value: ColorSpec) -> Self {
-        match value {
+impl From<&ColorSpec> for Color {
+    fn from(value: &ColorSpec) -> Self {
+        match *value {
             ColorSpec::RGB([r, g, b]) => Color::new(r, g, b),
             ColorSpec::Grey(v) => Color::grey(v),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+// let m_ground = Material::checker(0.32, Color::new(0.5, 0.8, 0.2), Color::grey(0.9));
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "lowercase", tag = "kind")]
 pub enum MatSpec {
-    Solid { color: ColorSpec },
-    Metal { color: ColorSpec, fuzz: f64 },
-    Dielectric { ref_index: f64 },
-    Isotropic { color: ColorSpec },
-    Light { color: ColorSpec },
-    Noise { scale: f64 },
+    Solid {
+        color: ColorSpec,
+    },
+    Checker {
+        scale: f64,
+        odd: ColorSpec,
+        even: ColorSpec,
+    },
+    Metal {
+        color: ColorSpec,
+        fuzz: f64,
+    },
+    Dielectric {
+        ref_index: f64,
+    },
+    Isotropic {
+        color: ColorSpec,
+    },
+    Light {
+        color: ColorSpec,
+    },
+    Noise {
+        scale: f64,
+    },
+    Image {
+        path: String,
+    },
 }
 
 impl MatSpec {
-    fn into_color(self) -> Color {
+    fn as_color(&self) -> Color {
         match self {
             Self::Solid { color } => color.into(),
             Self::Metal { color, .. } => color.into(),
@@ -59,15 +82,19 @@ impl MatSpec {
     }
 }
 
-impl From<MatSpec> for Material {
-    fn from(m: MatSpec) -> Self {
+impl From<&MatSpec> for Material {
+    fn from(m: &MatSpec) -> Self {
         match m {
             MatSpec::Solid { color } => Material::solid_color(color.into()),
-            MatSpec::Metal { color, fuzz } => Material::metal(color.into(), fuzz),
-            MatSpec::Dielectric { ref_index } => Material::dielectric(ref_index),
+            MatSpec::Checker { scale, odd, even } => {
+                Material::checker(*scale, even.into(), odd.into())
+            }
+            MatSpec::Metal { color, fuzz } => Material::metal(color.into(), *fuzz),
+            MatSpec::Dielectric { ref_index } => Material::dielectric(*ref_index),
             MatSpec::Isotropic { color } => Material::isotropic(color.into()),
             MatSpec::Light { color } => Material::diffuse_light(color.into()),
-            MatSpec::Noise { scale } => Material::noise(scale),
+            MatSpec::Noise { scale } => Material::noise(*scale),
+            MatSpec::Image { path } => Material::image(path),
         }
     }
 }
@@ -92,7 +119,7 @@ pub struct Mesh {
 
 impl Mesh {
     fn color(&self, mats: &HashMap<String, MatSpec>) -> Color {
-        mats.get(&self.material).unwrap().into_color()
+        mats.get(&self.material).unwrap().as_color()
     }
 
     fn as_hittable(
@@ -102,7 +129,7 @@ impl Mesh {
         point_radius: f64,
     ) -> Hittable {
         let (models, _) = load_obj(&self.path, &GPU_LOAD_OPTIONS).unwrap();
-        let mat: Material = (*mats.get(&self.material).unwrap()).into();
+        let mat: Material = mats.get(&self.material).unwrap().into();
         let mut objects = Vec::with_capacity(models.iter().map(|m| m.mesh.indices.len()).sum());
 
         eprintln!("Loading meshes from {:?}...", self.path);
@@ -208,7 +235,7 @@ impl HittableSpec {
             Self::Triangle { material, .. } => mats.get(material).unwrap(),
         };
 
-        mat.into_color()
+        mat.as_color()
     }
 
     fn as_hittable(&self, mats: &HashMap<String, MatSpec>) -> Hittable {
@@ -217,7 +244,14 @@ impl HittableSpec {
                 center,
                 r,
                 material,
-            } => Sphere::new((*center).into(), *r, (*mats.get(material).unwrap()).into()).into(),
+            } => Sphere::new(
+                (*center).into(),
+                *r,
+                mats.get(material)
+                    .unwrap_or_else(|| panic!("unknown material: {material}"))
+                    .into(),
+            )
+            .into(),
 
             Self::Box {
                 vert1,
@@ -226,14 +260,18 @@ impl HittableSpec {
             } => cuboid(
                 (*vert1).into(),
                 (*vert2).into(),
-                (*mats.get(material).unwrap()).into(),
+                mats.get(material)
+                    .unwrap_or_else(|| panic!("unknown material: {material}"))
+                    .into(),
             ),
 
             Self::Quad { q, u, v, material } => Quad::new(
                 (*q).into(),
                 (*u).into(),
                 (*v).into(),
-                (*mats.get(material).unwrap()).into(),
+                mats.get(material)
+                    .unwrap_or_else(|| panic!("unknown material: {material}"))
+                    .into(),
             )
             .into(),
 
@@ -241,7 +279,9 @@ impl HittableSpec {
                 (*a).into(),
                 (*b).into(),
                 (*c).into(),
-                (*mats.get(material).unwrap()).into(),
+                mats.get(material)
+                    .unwrap_or_else(|| panic!("unknown material: {material}"))
+                    .into(),
             )
             .into(),
         }
@@ -252,6 +292,8 @@ impl HittableSpec {
 pub struct Scene {
     // sim
     pub samples_per_pixel: u16,
+    #[serde(default)]
+    pub samples_step_size: u16,
     pub max_bounces: u8,
     // camera
     pub fov: f64,
@@ -276,6 +318,7 @@ impl Default for Scene {
     fn default() -> Self {
         Scene {
             samples_per_pixel: DEBUG_SAMPLES_PER_PIXEL,
+            samples_step_size: STEP_SIZE,
             max_bounces: MAX_BOUNCES,
             image_width: IMAGE_WIDTH,
             aspect_ratio: 1.0,
@@ -349,7 +392,7 @@ impl Scene {
             self.image_width,
             self.samples_per_pixel,
             self.max_bounces,
-            self.bg.into(),
+            (&self.bg).into(),
             self.fov,
             look_from,
             look_at,

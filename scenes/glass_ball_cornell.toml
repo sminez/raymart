@@ -1,0 +1,114 @@
+# Scene configuraton
+samples_per_pixel = 1000
+samples_step_size = 250
+max_bounces = 50
+image_width = 800
+bg = 0.0
+
+# Camera
+fov = 40.0
+aspect_ratio = 1.0
+from = [278.0, 278.0, -800.0]
+at = [278.0, 278.0, 0.0]
+v_up = [0.0, 1.0, 0.0]
+
+# Debug point view
+as_points = false
+point_radius = 0.005
+
+
+# Materials for meshes and objects
+[materials.light]
+kind = "light"
+color = 25.0
+
+[materials.red]
+kind = "solid"
+color = [0.65, 0.05, 0.05]
+
+[materials.green]
+kind = "solid"
+color = [0.12, 0.45, 0.15]
+
+# [materials.white]
+# kind = "solid"
+# color = 0.73
+
+# Use for the infinite mirror effect
+[materials.white]
+kind = "metal"
+color = 0.93
+fuzz = 0.0
+
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
+
+[materials.air]
+kind = "dielectric"
+ref_index = 0.769
+
+# Additional scene objects
+
+[[objects]]
+kind = "sphere"
+center = [343.0, 250.0, 342.0]
+r = 150.0
+material = "glass"
+
+[[objects]]
+kind = "sphere"
+center = [343.0, 250.0, 342.0]
+r = 120.0
+material = "air"
+
+[[objects]]
+kind = "sphere"
+center = [343.0, 250.0, 342.0]
+r = 100.0
+material = "glass"
+
+
+# Cornell Box
+
+[[objects]]
+kind = "quad"
+q = [343.0, 554.0, 332.0]
+u = [-130.0, 0.0, 0.0]
+v = [0.0, 0.0, -105.0]
+material = "light"
+
+[[objects]]
+kind = "quad"
+q = [555.0, 0.0, 0.0]
+u = [0.0, 555.0, 0.0]
+v = [0.0, 0.0, 555.0]
+material = "green"
+
+[[objects]]
+kind = "quad"
+q = [0.0, 0.0, 0.0]
+u = [0.0, 555.0, 0.0]
+v = [0.0, 0.0, 555.0]
+material = "red"
+
+[[objects]]
+kind = "quad"
+q = [0.0, 0.0, 0.0]
+u = [555.0, 0.0, 0.0]
+v = [0.0, 0.0, 555.0]
+material = "white"
+
+[[objects]]
+kind = "quad"
+q = [0.0, 0.0, 555.0]
+u = [555.0, 0.0, 0.0]
+v = [0.0, 555.0, 0.0]
+material = "white"
+
+[[objects]]
+kind = "quad"
+q = [555.0, 555.0, 555.0]
+u = [-555.0, 0.0, 0.0]
+v = [0.0, 0.0, -555.0]
+material = "white"

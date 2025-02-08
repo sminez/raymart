@@ -91,44 +91,11 @@ impl Camera {
         self.pixel_sample_scale = 1.0 / samples_pp as f64;
     }
 
-    // pub fn render_ppm(&self, w: &mut impl Write, world: &BvhNode) {
-    //     if let Err(e) = writeln!(w, "P3\n{} {}\n255", self.image_width, self.image_height) {
-    //         panic!("unable to write ppm header: {e}");
-    //     }
-
-    //     let start = Instant::now();
-    //     let pixels: Vec<Color> = (0..self.image_height)
-    //         .into_par_iter()
-    //         .flat_map(move |j| {
-    //             let res = (0..self.image_width).into_par_iter().map(move |i| {
-    //                 let (fi, fj) = (i as f64, j as f64);
-    //                 let color = (0..self.samples_pp)
-    //                     .into_par_iter()
-    //                     .map(|_| self.ray_color(self.get_ray(fi, fj), world))
-    //                     .reduce(Color::default, |mut a, b| {
-    //                         a += b;
-    //                         a
-    //                     });
-
-    //                 color * self.pixel_sample_scale
-    //             });
-    //             eprint!(".");
-    //             res
-    //         })
-    //         .collect();
-
-    //     let s: String = pixels.into_iter().map(|c| c.ppm_string()).collect();
-    //     writeln!(w, "{s}").unwrap();
-
-    //     let render_time = Instant::now().duration_since(start);
-    //     eprintln!("\nRender time: {}s", render_time.as_secs());
-    // }
-
-    pub fn render_ppm(&self, bvh: Bvh) {
+    pub fn render_ppm(&self, bvh: Bvh, step_size: u16) {
         let start = Instant::now();
 
-        let (iterations, pp) = if self.samples_pp > 100 {
-            (self.samples_pp / 100, 100)
+        let (iterations, pp) = if step_size > 0 && self.samples_pp > step_size {
+            (self.samples_pp / step_size, step_size)
         } else {
             (1, self.samples_pp)
         };
@@ -148,10 +115,11 @@ impl Camera {
             if pixels.is_empty() {
                 pixels = scaled;
             } else {
+                let k = (i - 1) as f64 / i as f64;
                 pixels = pixels
                     .into_iter()
                     .zip(scaled.into_iter())
-                    .map(|(prev, p)| (p * 1.0 / pp as f64) + prev)
+                    .map(|(prev, p)| prev * k + p)
                     .collect()
             }
 

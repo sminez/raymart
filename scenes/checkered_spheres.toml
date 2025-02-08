@@ -1,0 +1,38 @@
+# Scene configuraton
+samples_per_pixel = 1000
+max_bounces = 50
+image_width = 800
+bg = [0.7, 0.8, 1.0]
+
+# Camera
+fov = 20.0
+aspect_ratio = 1.6
+from = [12.0, 3.0, 3.0]
+at = [0.0, 0.0, 0.0]
+v_up = [0.0, 1.0, 0.0]
+
+# Debug point view
+as_points = false
+point_radius = 0.005
+
+
+# Materials for meshes and objects
+[materials.checker]
+kind = "checker"
+even = [0.2, 0.3, 0.1]
+odd = 0.9
+scale = 0.32
+
+# Additional scene objects
+
+[[objects]]
+kind = "sphere"
+center = [0.0, -10.0, 0.0]
+r = 10.0
+material = "checker"
+
+[[objects]]
+kind = "sphere"
+center = [0.0, 10.0, 0.0]
+r = 10.0
+material = "checker"
