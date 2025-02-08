@@ -1,21 +1,21 @@
-pub mod bbox;
-pub mod blender;
+pub mod bvh;
 pub mod color;
 pub mod hit;
 pub mod material;
 pub mod noise;
 pub mod ray;
+pub mod scene;
 pub mod v3;
 
 use rand::random_range;
 use std::env;
 
-use bbox::BvhNode;
-use blender::Scene;
+use bvh::Bvh;
 use color::Color;
 use hit::{cuboid, ConstantMedium, HitRecord, Hittable, Quad, Sphere};
 use material::Material;
 use ray::{Camera, Ray};
+use scene::Scene;
 use v3::{P3, V3};
 
 pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene background color
@@ -71,17 +71,14 @@ fn main() {
     }
 
     eprintln!("Computing bvh tree...");
-    let bvh_tree = BvhNode::new_from_hittables(hittables);
+    let bvh_tree = Bvh::new(hittables);
     eprintln!(
-        "BVH bounding box:\n  x={:?}\n  y={:?}\n  z={:?}\n  tree depth={}",
-        bvh_tree.bbox.x,
-        bvh_tree.bbox.y,
-        bvh_tree.bbox.z,
-        bvh_tree.max_depth()
+        "BVH bounding box:\n  x={:?}\n  y={:?}\n  z={:?}",
+        bvh_tree.bbox.x, bvh_tree.bbox.y, bvh_tree.bbox.z,
     );
 
     eprintln!("Rendering...");
-    camera.render_ppm(&bvh_tree);
+    camera.render_ppm(bvh_tree);
 
     eprintln!("\nDone");
 }

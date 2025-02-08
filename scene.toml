@@ -1,5 +1,5 @@
 # Scene configuraton
-samples_per_pixel = 100
+samples_per_pixel = 2000
 max_bounces = 50
 image_width = 800
 bg = 0.0

@@ -7,6 +7,8 @@ use crate::{
 };
 use std::ops::Add;
 
+pub const MAX_BVH_DEPTH: usize = 16;
+
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct AABBox {
     pub x: Interval,
@@ -47,6 +49,15 @@ impl AABBox {
         bbox
     }
 
+    fn new_containing(hittables: &[Hittable]) -> Self {
+        let mut bbox = AABBox::EMPTY;
+        for obj in hittables.iter() {
+            bbox = AABBox::new_enclosing(bbox, obj.bounding_box());
+        }
+
+        bbox
+    }
+
     /// Treat the two points a and b as extrema for the bounding box, so we don't require a
     /// particular minimum/maximum coordinate order.
     pub const fn new_from_points(a: P3, b: P3) -> AABBox {
@@ -66,7 +77,7 @@ impl AABBox {
         bbox
     }
 
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> bool {
+    pub fn hit_dist(&self, r: &Ray, ray_t: Interval) -> f64 {
         let tmin = (self.min - r.ro) * r.inv_dir;
         let tmax = (self.max - r.ro) * r.inv_dir;
         let t1 = tmin.fast_min(tmax);
@@ -78,7 +89,12 @@ impl AABBox {
         let tnear = ray_t.min.max(x1.max(y1.max(z1)));
         let tfar = ray_t.max.min(x2.min(y2.min(z2)));
 
-        tnear <= tfar
+        let hit = tfar >= tnear && tfar > 0.0;
+        if hit {
+            tnear.max(0.0)
+        } else {
+            f64::INFINITY
+        }
     }
 
     const fn axis_interval(&self, i: usize) -> Interval {
@@ -146,97 +162,171 @@ impl Add<AABBox> for V3 {
 }
 
 #[derive(Debug, Clone)]
-pub enum BvhInner {
-    Node(Box<BvhNode>),
-    Leaf(Hittable),
+pub struct FatNode {
+    bbox: AABBox,
+    start: usize, // start of children if n is None, else start of hittables
+    n: Option<usize>,
 }
 
-impl BvhInner {
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        match self {
-            Self::Node(n) => n.hits(r, ray_t),
-            Self::Leaf(l) => l.hits(r, ray_t),
+impl FatNode {
+    fn new(bbox: AABBox, start: usize) -> Self {
+        Self {
+            bbox,
+            start,
+            n: None,
         }
     }
 }
 
-// There is definitely a break even point in terms of the number of number of hittables
-// in the scene and the utility of the bvh_tree in terms of the overhead from checking
-// hits against the bounding boxes.
-// It's probably worth defining a heuristic to check against the resulting tree to see
-// if it is worthwhile using it or not.
+fn split(
+    parent_idx: usize,
+    start: usize,
+    n: usize,
+    depth: usize,
+    nodes: &mut Vec<FatNode>,
+    hittables: &mut [Hittable],
+) {
+    if n == 1 || depth >= MAX_BVH_DEPTH {
+        // remaining hittables sit in this node
+        let parent = &mut nodes[parent_idx];
+        parent.start = start;
+        parent.n = Some(n);
+        return;
+    }
+
+    // Split into two halves and recursively split the children
+    let axis = nodes[parent_idx].bbox.longest_axis();
+    hittables[start..(start + n)].sort_by(|a, b| {
+        let a_axis_interval = a.bounding_box().axis_interval(axis);
+        let b_axis_interval = b.bounding_box().axis_interval(axis);
+        a_axis_interval.min.total_cmp(&b_axis_interval.min)
+    });
+
+    let nleft = n / 2;
+    let nright = n - nleft;
+
+    let lbbox = AABBox::new_containing(&hittables[start..start + nleft]);
+    nodes.push(FatNode::new(lbbox, start));
+    let rbbox = AABBox::new_containing(&hittables[start + nleft..start + n]);
+    nodes.push(FatNode::new(rbbox, start + nleft));
+
+    let lidx = nodes.len() - 2;
+    let ridx = nodes.len() - 1;
+    nodes[parent_idx].start = lidx;
+
+    split(lidx, start, nleft, depth + 1, nodes, hittables);
+    split(ridx, start + nleft, nright, depth + 1, nodes, hittables);
+}
+
 #[derive(Debug, Clone)]
-pub struct BvhNode {
-    pub left: BvhInner,
-    pub right: BvhInner,
+pub struct Node {
+    min: wide::f64x4,
+    max: wide::f64x4,
+    start: usize, // start of children if n is None, else start of hittables
+    n: Option<usize>,
+}
+
+impl Node {
+    #[inline]
+    pub fn hit_dist(&self, r: &Ray, ray_t: Interval) -> f64 {
+        let tmin = (self.min - r.ro) * r.inv_dir;
+        let tmax = (self.max - r.ro) * r.inv_dir;
+        let t1 = tmin.fast_min(tmax);
+        let t2 = tmin.fast_max(tmax);
+
+        let [x1, y1, z1, _] = t1.to_array();
+        let [x2, y2, z2, _] = t2.to_array();
+
+        let tnear = ray_t.min.max(x1.max(y1.max(z1)));
+        let tfar = ray_t.max.min(x2.min(y2.min(z2)));
+
+        let hit = tfar >= tnear && tfar > 0.0;
+        if hit {
+            tnear.max(0.0)
+        } else {
+            f64::INFINITY
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Bvh {
+    hittables: Vec<Hittable>,
+    nodes: Vec<Node>,
     pub bbox: AABBox,
 }
 
-impl BvhNode {
-    pub fn new_from_hittables(objects: Vec<Hittable>) -> BvhNode {
-        Self::new(objects)
+impl Bvh {
+    pub fn new(mut hittables: Vec<Hittable>) -> Self {
+        let bbox = AABBox::new_containing(&hittables);
+        let mut fat_nodes = vec![FatNode::new(bbox, 0)];
+
+        split(0, 0, hittables.len(), 0, &mut fat_nodes, &mut hittables);
+        let nodes = fat_nodes
+            .into_iter()
+            .map(|n| Node {
+                min: n.bbox.min,
+                max: n.bbox.max,
+                start: n.start,
+                n: n.n,
+            })
+            .collect();
+
+        Self {
+            hittables,
+            nodes,
+            bbox,
+        }
     }
 
-    pub fn new(mut objects: Vec<Hittable>) -> BvhNode {
-        let mut bbox = AABBox::EMPTY;
-        for obj in objects.iter() {
-            bbox = AABBox::new_enclosing(bbox, obj.bounding_box());
-        }
+    pub fn hits(
+        &self,
+        r: &Ray,
+        mut ray_t: Interval,
+        stack: &mut [usize; MAX_BVH_DEPTH],
+    ) -> Option<HitRecord> {
+        let mut hr = None;
+        let mut i = 1;
+        stack[0] = 0;
 
-        let (left, right) = match objects.len() {
-            1 => (
-                BvhInner::Leaf(objects.remove(0)),
-                BvhInner::Leaf(Hittable::Empty),
-            ),
-            2 => (
-                BvhInner::Leaf(objects.remove(0)),
-                BvhInner::Leaf(objects.remove(0)),
-            ),
-            _ => {
-                let axis = bbox.longest_axis();
-                objects.sort_by(|a, b| {
-                    let a_axis_interval = a.bounding_box().axis_interval(axis);
-                    let b_axis_interval = b.bounding_box().axis_interval(axis);
+        while i > 0 {
+            i -= 1;
+            let node = &self.nodes[stack[i]];
 
-                    a_axis_interval.min.total_cmp(&b_axis_interval.min)
-                });
+            if let Some(n) = node.n {
+                // leaf node: check for hits
+                for leaf in &self.hittables[node.start..node.start + n] {
+                    if let Some(rec) = leaf.hits(r, ray_t) {
+                        ray_t.max = rec.t;
+                        hr = Some(rec);
+                    }
+                }
+            } else {
+                // check bbox for left and right children and push them to the stack
+                // if they intersect the ray
+                let left = &self.nodes[node.start];
+                let right = &self.nodes[node.start + 1];
+                let ldist = left.hit_dist(r, ray_t);
+                let rdist = right.hit_dist(r, ray_t);
 
-                let right = BvhNode::new(objects.split_off(objects.len() / 2));
-                let left = BvhNode::new(objects);
+                let ((a, adist), (b, bdist)) = if ldist < rdist {
+                    ((node.start, ldist), (node.start + 1, rdist))
+                } else {
+                    ((node.start + 1, rdist), (node.start, ldist))
+                };
 
-                (
-                    BvhInner::Node(Box::new(left)),
-                    BvhInner::Node(Box::new(right)),
-                )
+                if adist < ray_t.max {
+                    stack[i] = a;
+                    i += 1;
+                }
+                if bdist < ray_t.max {
+                    stack[i] = b;
+                    i += 1;
+                }
             }
-        };
-
-        Self { left, right, bbox }
-    }
-
-    pub fn max_depth(&self) -> usize {
-        match (&self.left, &self.right) {
-            (BvhInner::Leaf(_), BvhInner::Leaf(_)) => 1,
-            (BvhInner::Node(n), BvhInner::Leaf(_)) => n.max_depth() + 1,
-            (BvhInner::Leaf(_), BvhInner::Node(m)) => m.max_depth() + 1,
-            (BvhInner::Node(n), BvhInner::Node(m)) => n.max_depth().max(m.max_depth()) + 1,
-        }
-    }
-
-    pub fn hits(&self, r: &Ray, mut ray_t: Interval) -> Option<HitRecord> {
-        if !self.bbox.hits(r, ray_t) {
-            return None;
         }
 
-        let hit_left = match self.left.hits(r, ray_t) {
-            Some(h) => {
-                ray_t = Interval::new(ray_t.min, h.t);
-                Some(h)
-            }
-            None => None,
-        };
-
-        self.right.hits(r, ray_t).or(hit_left)
+        hr
     }
 }
 

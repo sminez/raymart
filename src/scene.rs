@@ -1,8 +1,8 @@
-//! helpers for working with files from Blender
+//! helpers for working with meshes and scenes defined in config files
 //!   https://docs.blender.org/manual/en/dev/modeling/meshes/introduction.html
 //!   https://en.wikipedia.org/wiki/Wavefront_.obj_file
 use crate::{
-    bbox::BvhNode,
+    bvh::Bvh,
     hit::{cuboid, ConstantMedium, Hittable, Quad, Sphere, Triangle},
     material::Material,
     p,
@@ -131,9 +131,7 @@ impl Mesh {
             eprintln!("    n hittables = {}", objects.len());
         }
 
-        let bvh = BvhNode::new(objects);
-        eprintln!("  BVH tree depth = {}", bvh.max_depth());
-        let mut h = Hittable::Bvh(Box::leak(Box::new(bvh)));
+        let mut h = Hittable::Bvh(Bvh::new(objects));
 
         if let Some(angle) = self.meta.rotate {
             h = h.rotate(angle);
@@ -266,7 +264,9 @@ pub struct Scene {
     pub as_points: bool,
     pub point_radius: f64,
     pub materials: HashMap<String, MatSpec>,
+    #[serde(default)]
     pub meshes: Vec<Mesh>,
+    #[serde(default)]
     pub objects: Vec<ObjSpec>,
     // light
     pub bg: ColorSpec,

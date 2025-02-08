@@ -1,10 +1,9 @@
-use rand::random_range;
-
 use crate::{
-    bbox::{AABBox, BvhNode},
+    bvh::{AABBox, Bvh, MAX_BVH_DEPTH},
     material::{Material, Texture},
     Color, Ray, P3, V3,
 };
+use rand::random_range;
 use std::{f64::consts::PI, ops::Add};
 
 const INV_PI: f64 = 1.0 / PI;
@@ -138,7 +137,7 @@ pub enum Hittable {
     ConstantMedium(ConstantMedium),
     // Compound
     List(HittableList),
-    Bvh(&'static BvhNode),
+    Bvh(Bvh),
     // Transforms
     Translate(Translate),
     Rotate(Rotate),
@@ -161,7 +160,7 @@ impl Hittable {
             Self::Triangle(t) => t.hits(r, ray_t),
             Self::ConstantMedium(c) => c.hits(r, ray_t),
             Self::List(l) => l.hits(r, ray_t),
-            Self::Bvh(b) => b.hits(r, ray_t),
+            Self::Bvh(b) => b.hits(r, ray_t, &mut [0; MAX_BVH_DEPTH]),
             Self::Translate(t) => t.hits(r, ray_t),
             Self::Rotate(ro) => ro.hits(r, ray_t),
         }

@@ -1,5 +1,5 @@
 use crate::{
-    bbox::BvhNode,
+    bvh::{Bvh, MAX_BVH_DEPTH},
     hit::Interval,
     v3::{P3, V3},
     Color,
@@ -124,7 +124,7 @@ impl Camera {
     //     eprintln!("\nRender time: {}s", render_time.as_secs());
     // }
 
-    pub fn render_ppm(&self, world: &BvhNode) {
+    pub fn render_ppm(&self, bvh: Bvh) {
         let start = Instant::now();
 
         let (iterations, pp) = if self.samples_pp > 100 {
@@ -136,7 +136,7 @@ impl Camera {
 
         for i in 1..=iterations {
             let scale = 1.0 / (i * pp) as f64;
-            let new_pixels = self.render_pass(pp, world);
+            let new_pixels = self.render_pass(pp, &bvh);
 
             let render_time = Instant::now().duration_since(start);
             eprintln!(
@@ -167,7 +167,7 @@ impl Camera {
         eprintln!("\nRender time: {}s", render_time.as_secs());
     }
 
-    fn render_pass(&self, samples_pp: u16, world: &BvhNode) -> Vec<Color> {
+    fn render_pass(&self, samples_pp: u16, bvh: &Bvh) -> Vec<Color> {
         (0..self.image_height)
             .into_par_iter()
             .flat_map(move |j| {
@@ -175,7 +175,7 @@ impl Camera {
                     let (fi, fj) = (i as f64, j as f64);
                     (0..samples_pp)
                         .into_par_iter()
-                        .map(|_| self.ray_color(self.get_ray(fi, fj), world))
+                        .map(|_| self.ray_color(self.get_ray(fi, fj), bvh))
                         .reduce(Color::default, |mut a, b| {
                             a += b;
                             a
@@ -211,12 +211,13 @@ impl Camera {
         self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
     }
 
-    fn ray_color(&self, mut r: Ray, world: &BvhNode) -> Color {
+    fn ray_color(&self, mut r: Ray, bvh: &Bvh) -> Color {
         let mut incoming_light = Color::BLACK;
         let mut rcolor = Color::WHITE;
+        let mut stack = [0; MAX_BVH_DEPTH];
 
         for _ in 0..self.max_bounces {
-            let hr = match world.hits(&r, Interval::new(0.001, f64::INFINITY)) {
+            let hr = match bvh.hits(&r, Interval::new(0.001, f64::INFINITY), &mut stack) {
                 Some(hr) => hr,
                 None => return rcolor * self.bg,
             };
