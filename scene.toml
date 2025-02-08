@@ -1,13 +1,13 @@
 # Scene configuraton
-samples_per_pixel = 50
+samples_per_pixel = 100
 max_bounces = 50
 image_width = 800
 bg = 0.0
 
 # Camera
-fov = 40.0
+fov = 20.0
 aspect_ratio = 1.0
-from = [1.2, 0.2, -0.85]
+from = [1.2, 0.2, -2.85]
 at = [0.05, 0.05, -0.08]
 v_up = [0.0, 1.0, 0.0]
 
@@ -33,14 +33,14 @@ fuzz = 0.01
 [materials.silver]
 kind = "metal"
 color = [0.2, 0.3, 0.8]
-fuzz = 1.0
+fuzz = 0.5
 
 
 # .obj meshes (only vertices are used)
 [[meshes]]
 path = "assets/Dragon_8K.obj"
 material = "red"
-rotate = 15.0
+rotate = 28.0
 
 
 # Additional scene objects
@@ -65,3 +65,21 @@ kind = "sphere"
 center = [0.0, -100.0, -1.0]
 r = 100.9
 material = "silver"
+
+[[objects]]
+kind = "sphere"
+center = [0.3, -0.1, 0.0]
+r = 0.1
+material = "gold"
+
+[[objects]]
+kind = "sphere"
+center = [0.41, -0.2, -0.5]
+r = 0.08
+material = "gold"
+
+[[objects]]
+kind = "sphere"
+center = [0.42, -0.23, 0.1]
+r = 0.07
+material = "gold"
