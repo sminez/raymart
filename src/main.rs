@@ -54,7 +54,7 @@ fn main() {
     );
 
     eprintln!("Rendering...");
-    camera.render_ppm(bvh_tree, s.samples_step_size);
+    camera.render_ppm(bvh_tree);
 
     eprintln!("\nDone");
 }

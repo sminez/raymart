@@ -410,6 +410,7 @@ impl Scene {
             self.aspect_ratio,
             self.image_width,
             self.samples_per_pixel,
+            self.samples_step_size,
             self.max_bounces,
             (&self.bg).into(),
             self.fov,

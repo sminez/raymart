@@ -10,17 +10,17 @@ use std::{cmp::max, fs, time::Instant};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Camera {
-    image_width: u16,        // rendered image width (pixels)
-    image_height: u16,       // rendered image height (pixels)
-    samples_pp: u16,         // number of random samples per pixel
-    max_bounces: u8,         // maximum number of ray bounces allowed
-    bg: Color,               // scene background color
-    center: P3,              // camera center
-    pixel_origin: P3,        // location of pixel 0,0
-    pixel_delta_u: V3,       // offset to pixel to the right
-    pixel_delta_v: V3,       // offset to pixel below
-    pixel_sample_scale: f64, // color scale factor for a sum of pixel samples
-    defocus_angle: f64,
+    image_width: u16,   // rendered image width (pixels)
+    image_height: u16,  // rendered image height (pixels)
+    samples_pp: u16,    // number of random samples per pixel
+    iterations: u16,    // number of iterations with the given step size
+    max_bounces: u8,    // maximum number of ray bounces allowed
+    bg: Color,          // scene background color
+    center: P3,         // camera center
+    pixel_origin: P3,   // location of pixel 0,0
+    pixel_delta_u: V3,  // offset to pixel to the right
+    pixel_delta_v: V3,  // offset to pixel below
+    defocus_angle: f64, // angle of the defocus disk
     defocus_disk_u: V3, // defocus disk horizontal radius
     defocus_disk_v: V3, // defocus disk vertical radius
 }
@@ -31,6 +31,7 @@ impl Camera {
         aspect_ratio: f64,
         image_width: u16,
         samples_pp: u16,
+        step_size: u16,
         max_bounces: u8,
         bg: Color,
         vfov: f64,
@@ -42,7 +43,12 @@ impl Camera {
     ) -> Self {
         let image_height = max(1, (image_width as f64 / aspect_ratio) as u16);
         let center = look_from;
-        let pixel_sample_scale = 1.0 / samples_pp as f64;
+
+        let (iterations, samples_pp) = if step_size > 0 && samples_pp > step_size {
+            (samples_pp / step_size, step_size)
+        } else {
+            (1, samples_pp)
+        };
 
         // viewport dimensions
         let theta = vfov.to_radians();
@@ -73,41 +79,31 @@ impl Camera {
             image_width,
             image_height,
             samples_pp,
+            iterations,
             max_bounces,
             bg,
             center,
             pixel_origin,
             pixel_delta_u,
             pixel_delta_v,
-            pixel_sample_scale,
             defocus_angle,
             defocus_disk_u,
             defocus_disk_v,
         }
     }
 
-    pub fn set_samples_per_pixel(&mut self, samples_pp: u16) {
-        self.samples_pp = samples_pp;
-        self.pixel_sample_scale = 1.0 / samples_pp as f64;
-    }
-
-    pub fn render_ppm(&self, bvh: Bvh, step_size: u16) {
+    pub fn render_ppm(&self, bvh: Bvh) {
         let start = Instant::now();
-
-        let (iterations, pp) = if step_size > 0 && self.samples_pp > step_size {
-            (self.samples_pp / step_size, step_size)
-        } else {
-            (1, self.samples_pp)
-        };
         let mut pixels = Vec::new();
 
-        for i in 1..=iterations {
-            let scale = 1.0 / (i * pp) as f64;
-            let new_pixels = self.render_pass(pp, &bvh);
+        for i in 1..=self.iterations {
+            let scale = 1.0 / (i * self.samples_pp) as f64;
+            let new_pixels = self.render_pass(&bvh);
 
             let render_time = Instant::now().duration_since(start);
             eprintln!(
-                "\nRender time so far ({i}/{iterations}): {}s",
+                "\nRender time so far ({i}/{}): {}s",
+                self.iterations,
                 render_time.as_secs()
             );
 
@@ -135,13 +131,13 @@ impl Camera {
         eprintln!("\nRender time: {}s", render_time.as_secs());
     }
 
-    fn render_pass(&self, samples_pp: u16, bvh: &Bvh) -> Vec<Color> {
+    fn render_pass(&self, bvh: &Bvh) -> Vec<Color> {
         (0..self.image_height)
             .into_par_iter()
             .flat_map(move |j| {
                 let res = (0..self.image_width).into_par_iter().map(move |i| {
                     let (fi, fj) = (i as f64, j as f64);
-                    (0..samples_pp)
+                    (0..self.samples_pp)
                         .into_par_iter()
                         .map(|_| self.ray_color(self.get_ray(fi, fj), bvh))
                         .reduce(Color::default, |mut a, b| {
