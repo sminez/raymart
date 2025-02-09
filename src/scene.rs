@@ -113,6 +113,8 @@ pub struct HitMeta {
 pub struct Mesh {
     pub path: String,
     pub material: String,
+    #[serde(default)]
+    pub scale: f64,
     #[serde(flatten)]
     pub meta: HitMeta,
 }
@@ -131,6 +133,7 @@ impl Mesh {
         let (models, _) = load_obj(&self.path, &GPU_LOAD_OPTIONS).unwrap();
         let mat: Material = mats.get(&self.material).unwrap().into();
         let mut objects = Vec::with_capacity(models.iter().map(|m| m.mesh.indices.len()).sum());
+        let scale = if self.scale == 0.0 { 1.0 } else { self.scale };
 
         eprintln!("Loading meshes from {:?}...", self.path);
         for m in models {
@@ -139,9 +142,30 @@ impl Mesh {
             let ix = &m.mesh.indices;
 
             for i in 0..ix.len() / 3 {
-                let a = pt!(ps, ix, i * 3);
-                let b = pt!(ps, ix, i * 3 + 1);
-                let c = pt!(ps, ix, i * 3 + 2);
+                let mut a = pt!(ps, ix, i * 3) * scale;
+                let mut b = pt!(ps, ix, i * 3 + 1) * scale;
+                let mut c = pt!(ps, ix, i * 3 + 2) * scale;
+
+                if let Some(angle) = self.meta.rotate {
+                    let rad = angle.to_radians();
+                    let sin_theta = rad.sin();
+                    let cos_theta = rad.cos();
+
+                    for v in [&mut a, &mut b, &mut c] {
+                        *v = V3::new(
+                            cos_theta * v.x + sin_theta * v.z,
+                            v.y,
+                            -sin_theta * v.x + cos_theta * v.z,
+                        );
+                    }
+                }
+
+                if let Some(v) = self.meta.translate {
+                    let v: V3 = v.into();
+                    a += v;
+                    b += v;
+                    c += v;
+                }
 
                 if as_points {
                     objects.extend(
@@ -160,12 +184,6 @@ impl Mesh {
 
         let mut h = Hittable::Bvh(Bvh::new(objects));
 
-        if let Some(angle) = self.meta.rotate {
-            h = h.rotate(angle);
-        }
-        if let Some(v) = self.meta.translate {
-            h = h.translate(v.into());
-        }
         if let Some(density) = self.meta.density {
             h = ConstantMedium::new(h, density, self.color(mats)).into();
         }
@@ -348,6 +366,7 @@ impl Default for Scene {
             meshes: vec![Mesh {
                 path: "assets/Dragon_8K.obj".to_string(),
                 material: "grey".to_string(),
+                scale: 1.0,
                 meta: HitMeta::default(),
             }],
             objects: vec![ObjSpec {

@@ -8,10 +8,14 @@
 - https://github.com/RayTracing/raytracing.github.io/wiki/Further-Readings
 - https://crates.io/crates/glam
 - https://en.wikipedia.org/wiki/Wavefront_.obj_file
-- https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-- https://github.com/tinyobjloader/tinyobjloader/tree/release/models
+- https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/
+- https://blog.demofox.org/2020/05/25/casual-shadertoy-path-tracing-1-basic-camera-diffuse-emissive/
 
 ![test](https://raw.githubusercontent.com/sminez/raymart/main/test.png)
+
+### Models
+- https://github.com/tinyobjloader/tinyobjloader/tree/release/models
+- https://casual-effects.com/data/
 
 ### GPU
 
