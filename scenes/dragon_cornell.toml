@@ -1,9 +1,9 @@
 # Scene configuraton
-samples_per_pixel = 64
+samples_per_pixel = 2500
 samples_step_size = 100
-max_bounces = 50
-image_width = 800
-bg = 0.0
+max_bounces = 80
+image_width = 1500
+bg = 0.5
 
 # Camera
 fov = 40.0
@@ -18,9 +18,35 @@ point_radius = 0.005
 
 
 # Materials for meshes and objects
+[materials.dragon_red]
+kind = "solid"
+color = [0.6, 0.2, 0.1]
+
+[materials.gold]
+kind = "metal"
+color = [0.8, 0.6, 0.2]
+fuzz = 0.7
+
+[materials.shiny_white]
+kind = "metal"
+color = 0.73
+fuzz = 0.6
+
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
+
+[materials.air]
+kind = "dielectric"
+ref_index = 0.769
+
 [materials.light]
 kind = "light"
-color = 25.0
+color = 5.0
+
+[materials.light2]
+kind = "light"
+color = 20.0
 
 [materials.red]
 kind = "solid"
@@ -41,23 +67,34 @@ color = 0.73
 # fuzz = 0.0
 
 
+# .obj meshes (only vertices are used)
+[[meshes]]
+path = "assets/Dragon_8K.obj"
+material = "gold"
+scale = 530.0
+rotate = 55.0
+translate = [290.0, 150.0, 270.0]
+
+
 # Additional scene objects
 
 [[objects]]
-kind = "box"
-vert1 = [0.0, 0.0, 0.0]
-vert2 = [165.0, 165.0, 165.0]
-material = "white"
-rotate = -18.0
-translate = [130.0, 0.0, 65.0]
+kind = "sphere"
+center = [413.0, 100.0, 142.0]
+r = 90.0
+material = "glass"
 
 [[objects]]
-kind = "box"
-vert1 = [0.0, 0.0, 0.0]
-vert2 = [165.0, 330.0, 165.0]
-material = "white"
-rotate = 15.0
-translate = [265.0, 0.0, 295.0]
+kind = "sphere"
+center = [413.0, 100.0, 142.0]
+r = 60.0
+material = "air"
+
+[[objects]]
+kind = "sphere"
+center = [413.0, 100.0, 142.0]
+r = 50.0
+material = "glass"
 
 
 # Cornell Box

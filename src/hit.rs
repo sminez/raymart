@@ -375,39 +375,11 @@ pub struct Quad {
     normal: V3,
     d: f64,
     mat: Material,
-    shape: QuadShape,
     bbox: AABBox,
 }
 
 impl Quad {
     pub fn new(q: P3, u: V3, v: V3, mat: Material) -> Quad {
-        Self::new_with_shape(q, u, v, mat, QuadShape::Quad)
-    }
-
-    pub fn new_triangle(q: P3, u: V3, v: V3, mat: Material) -> Quad {
-        Self::new_with_shape(q, u, v, mat, QuadShape::Triangle)
-    }
-
-    /// Radius needs to be 0..1
-    pub fn new_disk(q: P3, u: V3, v: V3, r: f64, mat: Material) -> Quad {
-        let shape = QuadShape::Disk {
-            r2: (r * 0.5).powi(2),
-        };
-
-        Self::new_with_shape(q, u, v, mat, shape)
-    }
-
-    /// Radii needs to be 0..1
-    pub fn new_ring(q: P3, u: V3, v: V3, r1: f64, r2: f64, mat: Material) -> Quad {
-        let shape = QuadShape::Ring {
-            r1_2: (r1 * 0.5).powi(2),
-            r2_2: (r2 * 0.5).powi(2),
-        };
-
-        Self::new_with_shape(q, u, v, mat, shape)
-    }
-
-    fn new_with_shape(q: P3, u: V3, v: V3, mat: Material, shape: QuadShape) -> Quad {
         let diag1 = AABBox::new_from_points(q, q + u + v);
         let diag2 = AABBox::new_from_points(q + u, q + v);
         let bbox = AABBox::new_enclosing(diag1, diag2);
@@ -425,7 +397,6 @@ impl Quad {
             normal,
             d,
             mat,
-            shape,
             bbox,
         }
     }
@@ -446,7 +417,7 @@ impl Quad {
         let alpha = self.w.dot(&planar_hitp.cross(&self.v));
         let beta = self.w.dot(&self.u.cross(&planar_hitp));
 
-        if !self.shape.hits_surface(alpha, beta) {
+        if !(Interval::UNIT.contains(alpha) && Interval::UNIT.contains(beta)) {
             return None;
         }
 
@@ -459,29 +430,6 @@ impl Quad {
             alpha,
             beta,
         ))
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum QuadShape {
-    Quad,
-    Triangle,
-    Disk { r2: f64 },
-    Ring { r1_2: f64, r2_2: f64 },
-}
-
-impl QuadShape {
-    // u,v surface coordinates are [0,1]x[1,0]
-    fn hits_surface(&self, alpha: f64, beta: f64) -> bool {
-        match self {
-            Self::Quad => Interval::UNIT.contains(alpha) && Interval::UNIT.contains(beta),
-            Self::Disk { r2 } => (alpha - 0.5).powi(2) + (beta - 0.5).powi(2) < *r2,
-            Self::Ring { r1_2, r2_2 } => {
-                let p = (alpha - 0.5).powi(2) + (beta - 0.5).powi(2);
-                p > *r2_2 && p < *r1_2
-            }
-            Self::Triangle => alpha > 0. && beta > 0. && alpha + beta < 1.,
-        }
     }
 }
 
