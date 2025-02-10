@@ -23,8 +23,8 @@ macro_rules! pt {
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(untagged)]
 pub enum ColorSpec {
-    RGB([f64; 3]),
-    Grey(f64),
+    RGB([f32; 3]),
+    Grey(f32),
 }
 
 impl From<&ColorSpec> for Color {
@@ -36,25 +36,29 @@ impl From<&ColorSpec> for Color {
     }
 }
 
-// let m_ground = Material::checker(0.32, Color::new(0.5, 0.8, 0.2), Color::grey(0.9));
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "lowercase", tag = "kind")]
 pub enum MatSpec {
     Solid {
         color: ColorSpec,
     },
+    Specular {
+        color: ColorSpec,
+        spec_color: ColorSpec,
+        smoothness: f32,
+        spec_prob: f32,
+    },
     Checker {
-        scale: f64,
+        scale: f32,
         odd: ColorSpec,
         even: ColorSpec,
     },
     Metal {
         color: ColorSpec,
-        fuzz: f64,
+        fuzz: f32,
     },
     Dielectric {
-        ref_index: f64,
+        ref_index: f32,
     },
     Isotropic {
         color: ColorSpec,
@@ -63,7 +67,7 @@ pub enum MatSpec {
         color: ColorSpec,
     },
     Noise {
-        scale: f64,
+        scale: f32,
     },
     Image {
         path: String,
@@ -86,6 +90,17 @@ impl From<&MatSpec> for Material {
     fn from(m: &MatSpec) -> Self {
         match m {
             MatSpec::Solid { color } => Material::solid_color(color.into()),
+            MatSpec::Specular {
+                color,
+                spec_color,
+                smoothness,
+                spec_prob,
+            } => Material::Specular {
+                albedo: color.into(),
+                spec_albedo: spec_color.into(),
+                smoothness: *smoothness,
+                prob: *spec_prob,
+            },
             MatSpec::Checker { scale, odd, even } => {
                 Material::checker(*scale, even.into(), odd.into())
             }
@@ -102,11 +117,11 @@ impl From<&MatSpec> for Material {
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct HitMeta {
     #[serde(default)]
-    rotate: Option<f64>,
+    rotate: Option<f32>,
     #[serde(default)]
-    translate: Option<[f64; 3]>,
+    translate: Option<[f32; 3]>,
     #[serde(default)]
-    density: Option<f64>,
+    density: Option<f32>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -114,7 +129,7 @@ pub struct Mesh {
     pub path: String,
     pub material: String,
     #[serde(default)]
-    pub scale: f64,
+    pub scale: f32,
     #[serde(flatten)]
     pub meta: HitMeta,
 }
@@ -128,7 +143,7 @@ impl Mesh {
         &self,
         mats: &HashMap<String, MatSpec>,
         as_points: bool,
-        point_radius: f64,
+        point_radius: f32,
     ) -> Hittable {
         let (models, _) = load_obj(&self.path, &GPU_LOAD_OPTIONS).unwrap();
         let mat: Material = mats.get(&self.material).unwrap().into();
@@ -221,25 +236,25 @@ impl ObjSpec {
 #[serde(rename_all = "lowercase", tag = "kind")]
 pub enum HittableSpec {
     Sphere {
-        center: [f64; 3],
-        r: f64,
+        center: [f32; 3],
+        r: f32,
         material: String,
     },
     Box {
-        vert1: [f64; 3],
-        vert2: [f64; 3],
+        vert1: [f32; 3],
+        vert2: [f32; 3],
         material: String,
     },
     Quad {
-        q: [f64; 3],
-        u: [f64; 3],
-        v: [f64; 3],
+        q: [f32; 3],
+        u: [f32; 3],
+        v: [f32; 3],
         material: String,
     },
     Triangle {
-        a: [f64; 3],
-        b: [f64; 3],
-        c: [f64; 3],
+        a: [f32; 3],
+        b: [f32; 3],
+        c: [f32; 3],
         material: String,
     },
 }
@@ -314,15 +329,15 @@ pub struct Scene {
     pub samples_step_size: u16,
     pub max_bounces: u8,
     // camera
-    pub fov: f64,
+    pub fov: f32,
     pub image_width: u16,
-    pub aspect_ratio: f64,
-    pub from: [f64; 3],
-    pub at: [f64; 3],
-    pub v_up: [f64; 3],
+    pub aspect_ratio: f32,
+    pub from: [f32; 3],
+    pub at: [f32; 3],
+    pub v_up: [f32; 3],
     // hittables
     pub as_points: bool,
-    pub point_radius: f64,
+    pub point_radius: f32,
     pub materials: HashMap<String, MatSpec>,
     #[serde(default)]
     pub meshes: Vec<Mesh>,

@@ -1,28 +1,28 @@
-//! A simple 3D vector using f64s
+//! A simple 3D vector using f32s
 use rand::random_range;
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
-const NEAR_ZERO: f64 = 1e-8;
+const NEAR_ZERO: f32 = 1e-8;
 
 pub type P3 = V3;
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct V3 {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }
 
 impl V3 {
     pub const ORIGIN: V3 = V3::new(0.0, 0.0, 0.0);
 
-    pub const fn new(x: f64, y: f64, z: f64) -> V3 {
+    pub const fn new(x: f32, y: f32, z: f32) -> V3 {
         Self { x, y, z }
     }
 
-    pub fn random(min: f64, max: f64) -> V3 {
+    pub fn random(min: f32, max: f32) -> V3 {
         V3::new(
             random_range(min..max),
             random_range(min..max),
@@ -62,7 +62,7 @@ impl V3 {
         *self - 2.0 * self.dot(&normal) * normal
     }
 
-    pub fn refract(&self, normal: V3, etai_over_etat: f64) -> V3 {
+    pub fn refract(&self, normal: V3, etai_over_etat: f32) -> V3 {
         let cos_theta = (-self.dot(&normal)).min(1.0);
         let r_out_perp = etai_over_etat * (*self + cos_theta * normal);
         let r_out_para = -(1.0 - r_out_perp.square_length()).sqrt() * normal;
@@ -70,7 +70,7 @@ impl V3 {
         r_out_perp + r_out_para
     }
 
-    pub const fn dot(&self, rhs: &V3) -> f64 {
+    pub const fn dot(&self, rhs: &V3) -> f32 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
 
@@ -82,11 +82,11 @@ impl V3 {
         )
     }
 
-    pub fn length(&self) -> f64 {
+    pub fn length(&self) -> f32 {
         self.square_length().sqrt()
     }
 
-    pub const fn square_length(&self) -> f64 {
+    pub const fn square_length(&self) -> f32 {
         self.dot(self)
     }
 
@@ -99,8 +99,8 @@ impl V3 {
     }
 }
 
-impl From<[f64; 3]> for V3 {
-    fn from(v: [f64; 3]) -> Self {
+impl From<[f32; 3]> for V3 {
+    fn from(v: [f32; 3]) -> Self {
         V3::new(v[0], v[1], v[2])
     }
 }
@@ -145,15 +145,15 @@ impl SubAssign<V3> for V3 {
     }
 }
 
-impl Mul<f64> for V3 {
+impl Mul<f32> for V3 {
     type Output = V3;
 
-    fn mul(self, rhs: f64) -> Self::Output {
+    fn mul(self, rhs: f32) -> Self::Output {
         Self::new(self.x * rhs, self.y * rhs, self.z * rhs)
     }
 }
 
-impl Mul<V3> for f64 {
+impl Mul<V3> for f32 {
     type Output = V3;
 
     fn mul(self, rhs: V3) -> Self::Output {
@@ -178,24 +178,24 @@ impl MulAssign<V3> for V3 {
     }
 }
 
-impl MulAssign<f64> for V3 {
-    fn mul_assign(&mut self, rhs: f64) {
+impl MulAssign<f32> for V3 {
+    fn mul_assign(&mut self, rhs: f32) {
         self.x *= rhs;
         self.y *= rhs;
         self.z *= rhs;
     }
 }
 
-impl Div<f64> for V3 {
+impl Div<f32> for V3 {
     type Output = V3;
 
-    fn div(self, rhs: f64) -> Self::Output {
+    fn div(self, rhs: f32) -> Self::Output {
         self * (1.0 / rhs)
     }
 }
 
-impl DivAssign<f64> for V3 {
-    fn div_assign(&mut self, rhs: f64) {
+impl DivAssign<f32> for V3 {
+    fn div_assign(&mut self, rhs: f32) {
         self.x /= rhs;
         self.y /= rhs;
         self.z /= rhs;
@@ -203,7 +203,7 @@ impl DivAssign<f64> for V3 {
 }
 
 impl Index<usize> for V3 {
-    type Output = f64;
+    type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
         match index {

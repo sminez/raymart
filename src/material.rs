@@ -8,7 +8,7 @@ pub enum Texture {
         albedo: Color,
     },
     Checker {
-        inv_scale: f64,
+        inv_scale: f32,
         odd: &'static Texture,
         even: &'static Texture,
     },
@@ -17,7 +17,7 @@ pub enum Texture {
     },
     Noise {
         noise: &'static Perlin<256>,
-        scale: f64,
+        scale: f32,
     },
 }
 
@@ -26,7 +26,7 @@ impl Texture {
         Self::SolidColor { albedo }
     }
 
-    pub fn checker(scale: f64, odd: Texture, even: Texture) -> Texture {
+    pub fn checker(scale: f32, odd: Texture, even: Texture) -> Texture {
         Self::Checker {
             inv_scale: 1.0 / scale,
             odd: Box::leak(Box::new(odd)),
@@ -40,14 +40,14 @@ impl Texture {
         Self::Image { raw }
     }
 
-    pub fn noise(scale: f64) -> Texture {
+    pub fn noise(scale: f32) -> Texture {
         Self::Noise {
             noise: Box::leak(Box::new(Perlin::new())),
             scale,
         }
     }
 
-    pub fn value(&self, u: f64, v: f64, p: P3) -> Color {
+    pub fn value(&self, u: f32, v: f32, p: P3) -> Color {
         match self {
             Self::SolidColor { albedo } => *albedo,
             Self::Checker {
@@ -61,7 +61,7 @@ impl Texture {
     }
 }
 
-fn checker_value(u: f64, v: f64, p: P3, inv_scale: f64, odd: &Texture, even: &Texture) -> Color {
+fn checker_value(u: f32, v: f32, p: P3, inv_scale: f32, odd: &Texture, even: &Texture) -> Color {
     let x = (inv_scale * p.x).floor() as i64;
     let y = (inv_scale * p.y).floor() as i64;
     let z = (inv_scale * p.z).floor() as i64;
@@ -73,34 +73,51 @@ fn checker_value(u: f64, v: f64, p: P3, inv_scale: f64, odd: &Texture, even: &Te
     }
 }
 
-fn image_value(mut u: f64, mut v: f64, _p: P3, raw: &RgbImage) -> Color {
+fn image_value(mut u: f32, mut v: f32, _p: P3, raw: &RgbImage) -> Color {
     // Clamp input texture coordinates to [0,1] x [1,0]
     u = Interval::UNIT.clamp(u);
     v = 1.0 - Interval::UNIT.clamp(v); // Flip V to image coordinates
 
-    let i = (u * raw.width() as f64) as u32;
-    let j = (v * raw.height() as f64) as u32;
+    let i = (u * raw.width() as f32) as u32;
+    let j = (v * raw.height() as f32) as u32;
     let px = raw.get_pixel(i, j);
     let scale = 1.0 / 255.0;
 
     Color::new(
-        scale * px.0[0] as f64,
-        scale * px.0[1] as f64,
-        scale * px.0[2] as f64,
+        scale * px.0[0] as f32,
+        scale * px.0[1] as f32,
+        scale * px.0[2] as f32,
     )
 }
 
-fn noise_value(p: P3, noise: &Perlin<256>, scale: f64) -> Color {
+fn noise_value(p: P3, noise: &Perlin<256>, scale: f32) -> Color {
     Color::new(0.5, 0.5, 0.5) * (1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum Material {
-    Lambertian { texture: Texture },
-    Metal { albedo: Color, fuzz: f64 },
-    Dielectric { ref_index: f64 },
-    DiffuseLight { texture: Texture },
-    Isotropic { texture: Texture },
+    Lambertian {
+        texture: Texture,
+    },
+    Specular {
+        albedo: Color,
+        spec_albedo: Color,
+        smoothness: f32,
+        prob: f32,
+    },
+    Metal {
+        albedo: Color,
+        fuzz: f32,
+    },
+    Dielectric {
+        ref_index: f32,
+    },
+    DiffuseLight {
+        texture: Texture,
+    },
+    Isotropic {
+        texture: Texture,
+    },
 }
 
 impl Material {
@@ -110,7 +127,7 @@ impl Material {
         }
     }
 
-    pub fn checker(scale: f64, even: Color, odd: Color) -> Material {
+    pub fn checker(scale: f32, even: Color, odd: Color) -> Material {
         Self::Lambertian {
             texture: Texture::checker(scale, Texture::solid(even), Texture::solid(odd)),
         }
@@ -122,19 +139,19 @@ impl Material {
         }
     }
 
-    pub fn noise(scale: f64) -> Material {
+    pub fn noise(scale: f32) -> Material {
         Self::Lambertian {
             texture: Texture::noise(scale),
         }
     }
 
-    pub fn metal(albedo: Color, fuzz: f64) -> Material {
+    pub fn metal(albedo: Color, fuzz: f32) -> Material {
         let fuzz = if fuzz < 1.0 { fuzz } else { 1.0 };
 
         Self::Metal { albedo, fuzz }
     }
 
-    pub fn dielectric(ref_index: f64) -> Material {
+    pub fn dielectric(ref_index: f32) -> Material {
         Self::Dielectric { ref_index }
     }
 
@@ -161,6 +178,12 @@ impl Material {
     pub fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
         match self {
             Self::Lambertian { texture } => lambertian_scatter(texture, rec),
+            Self::Specular {
+                albedo,
+                spec_albedo,
+                smoothness,
+                prob,
+            } => specular_scatter(albedo, spec_albedo, *smoothness, *prob, r_in, rec),
             Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, rec),
             Self::Dielectric { ref_index } => dielectric_scatter(*ref_index, r_in, rec),
             Self::Isotropic { texture } => isotropic_scatter(texture, rec),
@@ -168,7 +191,7 @@ impl Material {
         }
     }
 
-    pub fn color_emitted(&self, u: f64, v: f64, p: P3) -> Color {
+    pub fn color_emitted(&self, u: f32, v: f32, p: P3) -> Color {
         match self {
             Self::DiffuseLight { texture } => texture.value(u, v, p),
             _ => Color::BLACK,
@@ -187,7 +210,7 @@ fn lambertian_scatter(texture: &Texture, rec: &HitRecord) -> Option<(Ray, Color)
     Some((scattered, attenuation))
 }
 
-fn metal_scatter(albedo: &Color, fuzz: f64, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
+fn metal_scatter(albedo: &Color, fuzz: f32, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
     let reflected = r_in.dir.reflect(rec.normal).unit_vector() + (fuzz * V3::random_unit_vector());
     let scattered = Ray::new(rec.p, reflected);
 
@@ -198,7 +221,30 @@ fn metal_scatter(albedo: &Color, fuzz: f64, r_in: &Ray, rec: &HitRecord) -> Opti
     }
 }
 
-fn dielectric_scatter(ref_index: f64, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
+fn specular_scatter(
+    albedo: &Color,
+    spec_albedo: &Color,
+    smoothness: f32,
+    prob: f32,
+    r_in: &Ray,
+    rec: &HitRecord,
+) -> Option<(Ray, Color)> {
+    let diffuse_dir = (rec.normal + V3::random_unit_vector()).unit_vector();
+    let is_specular = prob > random_range(0.0..1.0);
+    let (dir, color) = if is_specular {
+        let specular_dir = r_in.dir.reflect(rec.normal);
+        (
+            (diffuse_dir * (1.0 - smoothness) + specular_dir * smoothness).unit_vector(),
+            *spec_albedo,
+        )
+    } else {
+        (diffuse_dir, *albedo)
+    };
+
+    Some((Ray::new(rec.p, dir), color))
+}
+
+fn dielectric_scatter(ref_index: f32, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
     let ri = if rec.front_face {
         1.0 / ref_index
     } else {
@@ -220,7 +266,7 @@ fn dielectric_scatter(ref_index: f64, r_in: &Ray, rec: &HitRecord) -> Option<(Ra
 }
 
 /// Use Schlick's approximation for reflectance.
-fn reflectance(cosine: f64, ref_index: f64) -> f64 {
+fn reflectance(cosine: f32, ref_index: f32) -> f32 {
     let r0 = (1.0 - ref_index) / (1.0 + ref_index);
     let r0_sq = r0 * r0;
 

@@ -14,8 +14,8 @@ pub struct AABBox {
     pub x: Interval,
     pub y: Interval,
     pub z: Interval,
-    min: wide::f64x4,
-    max: wide::f64x4,
+    min: wide::f32x4,
+    max: wide::f32x4,
 }
 
 impl AABBox {
@@ -28,8 +28,8 @@ impl AABBox {
             x,
             y,
             z,
-            min: wide::f64x4::ZERO,
-            max: wide::f64x4::ZERO,
+            min: wide::f32x4::ZERO,
+            max: wide::f32x4::ZERO,
         };
         bbox.pad_to_minimum();
 
@@ -41,8 +41,8 @@ impl AABBox {
             x: Interval::new_enclosing(a.x, b.x),
             y: Interval::new_enclosing(a.y, b.y),
             z: Interval::new_enclosing(a.z, b.z),
-            min: wide::f64x4::ZERO,
-            max: wide::f64x4::ZERO,
+            min: wide::f32x4::ZERO,
+            max: wide::f32x4::ZERO,
         };
         bbox.pad_to_minimum();
 
@@ -69,15 +69,15 @@ impl AABBox {
             x: Interval::new(x1, x2),
             y: Interval::new(y1, y2),
             z: Interval::new(z1, z2),
-            min: wide::f64x4::ZERO,
-            max: wide::f64x4::ZERO,
+            min: wide::f32x4::ZERO,
+            max: wide::f32x4::ZERO,
         };
         bbox.pad_to_minimum();
 
         bbox
     }
 
-    pub fn hit_dist(&self, r: &Ray, ray_t: Interval) -> f64 {
+    pub fn hit_dist(&self, r: &Ray, ray_t: Interval) -> f32 {
         let tmin = (self.min - r.ro) * r.inv_dir;
         let tmax = (self.max - r.ro) * r.inv_dir;
         let t1 = tmin.fast_min(tmax);
@@ -93,7 +93,7 @@ impl AABBox {
         if hit {
             tnear.max(0.0)
         } else {
-            f64::INFINITY
+            f32::INFINITY
         }
     }
 
@@ -132,11 +132,11 @@ impl AABBox {
             self.z = self.z.expand(delta);
         }
 
-        self.min = wide::f64x4::new([self.x.min, self.y.min, self.z.min, 0.0]);
-        self.max = wide::f64x4::new([self.x.max, self.y.max, self.z.max, 0.0]);
+        self.min = wide::f32x4::new([self.x.min, self.y.min, self.z.min, 0.0]);
+        self.max = wide::f32x4::new([self.x.max, self.y.max, self.z.max, 0.0]);
     }
 
-    pub const fn expand(&self, delta: f64) -> AABBox {
+    pub const fn expand(&self, delta: f32) -> AABBox {
         AABBox::new(
             self.x.expand(delta),
             self.y.expand(delta),
@@ -220,15 +220,15 @@ fn split(
 
 #[derive(Debug, Clone)]
 pub struct Node {
-    min: wide::f64x4,
-    max: wide::f64x4,
+    min: wide::f32x4,
+    max: wide::f32x4,
     start: usize, // start of children if n is None, else start of hittables
     n: Option<usize>,
 }
 
 impl Node {
     #[inline]
-    pub fn hit_dist(&self, r: &Ray, ray_t: Interval) -> f64 {
+    pub fn hit_dist(&self, r: &Ray, ray_t: Interval) -> f32 {
         let tmin = (self.min - r.ro) * r.inv_dir;
         let tmax = (self.max - r.ro) * r.inv_dir;
         let t1 = tmin.fast_min(tmax);
@@ -244,7 +244,7 @@ impl Node {
         if hit {
             tnear.max(0.0)
         } else {
-            f64::INFINITY
+            f32::INFINITY
         }
     }
 }
@@ -335,7 +335,7 @@ mod tests {
     use super::*;
     use simple_test_case::test_case;
 
-    fn bbox(x1: f64, x2: f64, y1: f64, y2: f64, z1: f64, z2: f64) -> AABBox {
+    fn bbox(x1: f32, x2: f32, y1: f32, y2: f32, z1: f32, z2: f32) -> AABBox {
         AABBox::new(
             Interval::new(x1, x2),
             Interval::new(y1, y2),

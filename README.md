@@ -21,7 +21,7 @@
 
 - https://github.com/gfx-rs/wgpu
   - https://github.com/gfx-rs/wgpu/tree/trunk/examples/standalone/01_hello_compute/src
-- https://vulkan-tutorial.com/Introduction
+- https://www.w3.org/TR/WGSL
 - https://rust-gpu.github.io/rust-gpu/book/writing-shader-crates.html
 - https://github.com/Rust-GPU/rust-gpu
 - https://docs.rs/glam/latest/glam/

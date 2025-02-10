@@ -1,142 +1,70 @@
 # Scene configuraton
-samples_per_pixel = 2500
-samples_step_size = 100
+samples_per_pixel = 100
+samples_step_size = 10
 max_bounces = 80
-image_width = 1500
-bg = 0.5
+image_width = 1000
+bg = 0.0
 
 # Camera
 fov = 40.0
 aspect_ratio = 1.0
-from = [278.0, 278.0, -760.0]
-at = [278.0, 278.0, 0.0]
+from = [1.0, 2.0, -6.0]
+at = [0.0, 1.0, 0.0]
 v_up = [0.0, 1.0, 0.0]
 
 # Debug point view
 as_points = false
 point_radius = 0.005
 
-
 # Materials for meshes and objects
 [materials.dragon_red]
-kind = "solid"
+kind = "specular"
 color = [0.6, 0.2, 0.1]
+spec_color = 1.0
+smoothness = 0.8
+spec_prob = 0.2
 
 [materials.gold]
-kind = "metal"
+kind = "specular"
 color = [0.8, 0.6, 0.2]
-fuzz = 0.7
-
-[materials.shiny_white]
-kind = "metal"
-color = 0.73
-fuzz = 0.6
-
-[materials.glass]
-kind = "dielectric"
-ref_index = 1.33
-
-[materials.air]
-kind = "dielectric"
-ref_index = 0.769
+spec_color = 1.0
+smoothness = 0.9
+spec_prob = 0.8
 
 [materials.light]
 kind = "light"
-color = 5.0
+color = 6.0
 
-[materials.light2]
-kind = "light"
-color = 20.0
-
-[materials.red]
-kind = "solid"
-color = [0.65, 0.05, 0.05]
-
-[materials.green]
-kind = "solid"
-color = [0.12, 0.45, 0.15]
-
-[materials.white]
-kind = "solid"
-color = 0.73
-
-# Use for the infinite mirror effect
-# [materials.white]
-# kind = "metal"
-# color = 0.93
-# fuzz = 0.0
-
+[materials.perlin]
+kind = "noise"
+scale = 4.0
 
 # .obj meshes (only vertices are used)
 [[meshes]]
 path = "assets/Dragon_8K.obj"
-material = "gold"
-scale = 530.0
+material = "dragon_red"
+scale = 3.0
 rotate = 55.0
-translate = [290.0, 150.0, 270.0]
+translate = [0.0, 1.0, 0.0]
 
 
 # Additional scene objects
 
+# "sun"
 [[objects]]
 kind = "sphere"
-center = [413.0, 100.0, 142.0]
-r = 90.0
-material = "glass"
-
-[[objects]]
-kind = "sphere"
-center = [413.0, 100.0, 142.0]
-r = 60.0
-material = "air"
-
-[[objects]]
-kind = "sphere"
-center = [413.0, 100.0, 142.0]
-r = 50.0
-material = "glass"
-
-
-# Cornell Box
-
-[[objects]]
-kind = "quad"
-q = [343.0, 554.0, 332.0]
-u = [-130.0, 0.0, 0.0]
-v = [0.0, 0.0, -105.0]
+center = [-2.4, 2.9, -5.0]
+r = 2.5
 material = "light"
 
 [[objects]]
-kind = "quad"
-q = [555.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
-material = "green"
+kind = "sphere"
+center = [1.5, 0.7, -1.0]
+r = 0.7
+material = "gold"
 
 [[objects]]
-kind = "quad"
-q = [0.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
-material = "red"
-
-[[objects]]
-kind = "quad"
-q = [0.0, 0.0, 0.0]
-u = [555.0, 0.0, 0.0]
-v = [0.0, 0.0, 555.0]
-material = "white"
-
-[[objects]]
-kind = "quad"
-q = [0.0, 0.0, 555.0]
-u = [555.0, 0.0, 0.0]
-v = [0.0, 555.0, 0.0]
-material = "white"
-
-[[objects]]
-kind = "quad"
-q = [555.0, 555.0, 555.0]
-u = [-555.0, 0.0, 0.0]
-v = [0.0, 0.0, -555.0]
-material = "white"
+kind = "sphere"
+center = [0.0, -1000.0, 0.0]
+r = 1000.0
+material = "perlin"

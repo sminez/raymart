@@ -44,7 +44,7 @@ impl<const N: usize> Perlin<N> {
         }
     }
 
-    pub fn noise(&self, p: P3) -> f64 {
+    pub fn noise(&self, p: P3) -> f32 {
         let u = p.x - p.x.floor();
         let v = p.y - p.y.floor();
         let w = p.z - p.z.floor();
@@ -73,11 +73,11 @@ impl<const N: usize> Perlin<N> {
 
         #[allow(clippy::needless_range_loop)]
         for i in 0..2 {
-            let fi = i as f64;
+            let fi = i as f32;
             for j in 0..2 {
-                let fj = j as f64;
+                let fj = j as f32;
                 for k in 0..2 {
-                    let fk = k as f64;
+                    let fk = k as f32;
                     let weight = V3::new(u - fi, v - fj, w - fk);
                     acc += (fi * uu + (1.0 - fi) * (1.0 - uu))
                         * (fj * vv + (1.0 - fj) * (1.0 - vv))
@@ -90,7 +90,7 @@ impl<const N: usize> Perlin<N> {
         acc
     }
 
-    pub fn turb(&self, p: P3, depth: usize) -> f64 {
+    pub fn turb(&self, p: P3, depth: usize) -> f32 {
         let mut acc = 0.0;
         let mut temp_p = p;
         let mut weight = 1.0;

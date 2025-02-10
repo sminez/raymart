@@ -4,15 +4,15 @@ use crate::{
     Color, Ray, P3, V3,
 };
 use rand::random_range;
-use std::{f64::consts::PI, ops::Add};
+use std::{f32::consts::PI, ops::Add};
 
-const INV_PI: f64 = 1.0 / PI;
-const INV_2PI: f64 = 1.0 / (2.0 * PI);
+const INV_PI: f32 = 1.0 / PI;
+const INV_2PI: f32 = 1.0 / (2.0 * PI);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Interval {
-    pub min: f64,
-    pub max: f64,
+    pub min: f32,
+    pub max: f32,
 }
 
 impl Default for Interval {
@@ -22,11 +22,11 @@ impl Default for Interval {
 }
 
 impl Interval {
-    pub const EMPTY: Interval = Interval::new(f64::INFINITY, -f64::INFINITY);
-    pub const UNIVERSE: Interval = Interval::new(-f64::INFINITY, f64::INFINITY);
+    pub const EMPTY: Interval = Interval::new(f32::INFINITY, -f32::INFINITY);
+    pub const UNIVERSE: Interval = Interval::new(-f32::INFINITY, f32::INFINITY);
     pub const UNIT: Interval = Interval::new(0.0, 1.0);
 
-    pub const fn new(min: f64, max: f64) -> Interval {
+    pub const fn new(min: f32, max: f32) -> Interval {
         Self { min, max }
     }
 
@@ -37,19 +37,19 @@ impl Interval {
         }
     }
 
-    pub const fn size(&self) -> f64 {
+    pub const fn size(&self) -> f32 {
         self.max - self.min
     }
 
-    pub const fn contains(&self, x: f64) -> bool {
+    pub const fn contains(&self, x: f32) -> bool {
         self.min <= x && x <= self.max
     }
 
-    pub const fn surrounds(&self, x: f64) -> bool {
+    pub const fn surrounds(&self, x: f32) -> bool {
         self.min < x && x < self.max
     }
 
-    pub const fn clamp(&self, x: f64) -> f64 {
+    pub const fn clamp(&self, x: f32) -> f32 {
         if x < self.min {
             self.min
         } else if x > self.max {
@@ -60,22 +60,22 @@ impl Interval {
     }
 
     #[must_use]
-    pub const fn expand(&self, delta: f64) -> Interval {
+    pub const fn expand(&self, delta: f32) -> Interval {
         let padding = delta / 2.0;
 
         Interval::new(self.min - padding, self.max + padding)
     }
 }
 
-impl Add<f64> for Interval {
+impl Add<f32> for Interval {
     type Output = Interval;
 
-    fn add(self, rhs: f64) -> Self::Output {
+    fn add(self, rhs: f32) -> Self::Output {
         Interval::new(self.min + rhs, self.max + rhs)
     }
 }
 
-impl Add<Interval> for f64 {
+impl Add<Interval> for f32 {
     type Output = Interval;
 
     fn add(self, rhs: Interval) -> Self::Output {
@@ -85,17 +85,17 @@ impl Add<Interval> for f64 {
 
 #[derive(Debug, Clone)]
 pub struct HitRecord {
-    pub t: f64,
+    pub t: f32,
     pub p: P3,
     pub normal: V3,
     pub front_face: bool,
     pub mat: Material,
-    pub u: f64,
-    pub v: f64,
+    pub u: f32,
+    pub v: f32,
 }
 
 impl HitRecord {
-    pub fn new(t: f64, p: P3, outward_normal: V3, r: &Ray, mat: Material, u: f64, v: f64) -> Self {
+    pub fn new(t: f32, p: P3, outward_normal: V3, r: &Ray, mat: Material, u: f32, v: f32) -> Self {
         let front_face = r.dir.dot(&outward_normal) < 0.0;
         let normal = if front_face {
             outward_normal
@@ -148,7 +148,7 @@ impl Hittable {
         Self::Translate(Translate::new(self, offset))
     }
 
-    pub fn rotate(self, angle: f64) -> Hittable {
+    pub fn rotate(self, angle: f32) -> Hittable {
         Self::Rotate(Rotate::new(self, angle))
     }
 
@@ -244,14 +244,14 @@ impl HittableList {
 #[derive(Debug, Clone)]
 pub struct Sphere {
     center: P3,
-    inv_radius: f64,
-    radius_sq: f64,
+    inv_radius: f32,
+    radius_sq: f32,
     mat: Material,
     bbox: AABBox,
 }
 
 impl Sphere {
-    pub fn new(center: P3, radius: f64, mat: Material) -> Self {
+    pub fn new(center: P3, radius: f32, mat: Material) -> Self {
         let r = radius.max(0.0);
         let rvec = V3::new(r, r, r);
         let bbox = AABBox::new_from_points(center - rvec, center + rvec);
@@ -373,7 +373,7 @@ pub struct Quad {
     v: V3,
     w: V3,
     normal: V3,
-    d: f64,
+    d: f32,
     mat: Material,
     bbox: AABBox,
 }
@@ -456,16 +456,16 @@ pub fn cuboid(a: P3, b: P3, mat: Material) -> Hittable {
 #[derive(Debug, Clone)]
 pub struct ConstantMedium {
     boundary: &'static Hittable,
-    neg_inv_density: f64,
+    neg_inv_density: f32,
     phase_func: Material,
 }
 
 impl ConstantMedium {
-    pub fn new(boundary: Hittable, density: f64, color: Color) -> ConstantMedium {
+    pub fn new(boundary: Hittable, density: f32, color: Color) -> ConstantMedium {
         Self::new_with_texture(boundary, density, Texture::solid(color))
     }
 
-    pub fn new_with_texture(boundary: Hittable, density: f64, texture: Texture) -> ConstantMedium {
+    pub fn new_with_texture(boundary: Hittable, density: f32, texture: Texture) -> ConstantMedium {
         let neg_inv_density = -1.0 / density;
 
         Self {
@@ -481,7 +481,7 @@ impl ConstantMedium {
 
     pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         let mut hr1 = self.boundary.hits(r, Interval::UNIVERSE)?;
-        let i2 = Interval::new(hr1.t + 0.0001, f64::INFINITY);
+        let i2 = Interval::new(hr1.t + 0.0001, f32::INFINITY);
         let mut hr2 = self.boundary.hits(r, i2)?;
 
         hr1.t = hr1.t.max(ray_t.min);
@@ -494,7 +494,7 @@ impl ConstantMedium {
 
         let r_len = r.dir.length();
         let dist_in_boundary = (hr2.t - hr1.t) * r_len;
-        let hit_dist = self.neg_inv_density * random_range(0.0..1.0f64).log2();
+        let hit_dist = self.neg_inv_density * random_range(0.0..1.0f32).log2();
         if hit_dist > dist_in_boundary {
             return None;
         }
@@ -542,27 +542,27 @@ impl Translate {
 #[derive(Debug, Clone)]
 pub struct Rotate {
     inner: Box<Hittable>,
-    sin_theta: f64,
-    cos_theta: f64,
+    sin_theta: f32,
+    cos_theta: f32,
     bbox: AABBox,
 }
 
 impl Rotate {
-    fn new(inner: Hittable, angle: f64) -> Rotate {
+    fn new(inner: Hittable, angle: f32) -> Rotate {
         let rad = angle.to_radians();
         let sin_theta = rad.sin();
         let cos_theta = rad.cos();
         let bbox = inner.bounding_box();
 
-        let mut min = P3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY);
-        let mut max = P3::new(-f64::INFINITY, -f64::INFINITY, -f64::INFINITY);
+        let mut min = P3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
+        let mut max = P3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY);
 
         for i in 0..2 {
             for j in 0..2 {
                 for k in 0..2 {
-                    let x = i as f64 * bbox.x.max + (1 - i) as f64 * bbox.x.min;
-                    let y = j as f64 * bbox.y.max + (1 - j) as f64 * bbox.y.min;
-                    let z = k as f64 * bbox.z.max + (1 - k) as f64 * bbox.z.min;
+                    let x = i as f32 * bbox.x.max + (1 - i) as f32 * bbox.x.min;
+                    let y = j as f32 * bbox.y.max + (1 - j) as f32 * bbox.y.min;
+                    let z = k as f32 * bbox.z.max + (1 - k) as f32 * bbox.z.min;
 
                     let new_x = cos_theta * x + sin_theta * z;
                     let new_z = -sin_theta * x + cos_theta * z;
