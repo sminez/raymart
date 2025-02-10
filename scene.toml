@@ -1,51 +1,65 @@
 # Scene configuraton
-samples_per_pixel = 1000
+samples_per_pixel = 500
 samples_step_size = 100
 max_bounces = 80
-image_width = 1000
+image_width = 1500
 bg = 0.0
 
 # Camera
-fov = 40.0
+fov = 20.0
 aspect_ratio = 1.0
-from = [1.0, 2.0, -6.0]
-at = [0.0, 1.0, 0.0]
+from = [1.2, 0.2, -2.85]
+at = [0.05, 0.05, -0.08]
 v_up = [0.0, 1.0, 0.0]
 
 # Debug point view
 as_points = false
 point_radius = 0.005
 
+
 # Materials for meshes and objects
+[materials.light]
+kind = "light"
+color = 6.5
+
+[materials.red]
+kind = "solid"
+color = [0.9, 0.2, 0.1]
+
 [materials.dragon]
 kind = "specular"
-color = [0.1, 0.2, 0.07]
-spec_color = 0.3
-smoothness = 0.7
-spec_prob = 0.7
+# color = [0.1, 0.2, 0.07]
+color = [0.4, 0.1, 0.05]
+spec_color = 0.2
+smoothness = 0.4
+spec_prob = 0.2
+
+[materials.balls]
+kind = "metal"
+color = [0.8, 0.6, 0.2]
+fuzz = 0.01
 
 [materials.gold]
 kind = "specular"
 color = [0.8, 0.6, 0.2]
-spec_color = 1.0
-smoothness = 0.9
-spec_prob = 0.8
+spec_color = 0.3
+smoothness = 0.2
+spec_prob = 0.1
 
-[materials.light]
-kind = "light"
-color = 6.0
+[materials.silver]
+kind = "specular"
+color = [0.2, 0.3, 0.8]
+spec_color = 0.9
+smoothness = 0.4
+spec_prob = 0.9
 
-[materials.perlin]
-kind = "noise"
-scale = 4.0
 
 # .obj meshes (only vertices are used)
 [[meshes]]
 path = "assets/Dragon_8K.obj"
 material = "dragon"
-scale = 3.0
-rotate = 55.0
-translate = [0.0, 1.0, 0.0]
+rotate = 18.0
+translate = [0.0, -0.02, 0.0]
 
 
 # Additional scene objects
@@ -53,18 +67,38 @@ translate = [0.0, 1.0, 0.0]
 # "sun"
 [[objects]]
 kind = "sphere"
-center = [-2.4, 2.9, -5.0]
-r = 2.5
+center = [1.4, 0.9, -0.8]
+r = 0.7
 material = "light"
 
+# ground
 [[objects]]
 kind = "sphere"
-center = [1.5, 0.7, -1.0]
-r = 0.7
+center = [0.0, -100.0, -1.0]
+r = 99.7
 material = "gold"
+
+# metalic shell
+[[objects]]
+kind = "sphere"
+center = [0.0, -100.0, -1.0]
+r = 100.9
+material = "silver"
 
 [[objects]]
 kind = "sphere"
-center = [0.0, -1000.0, 0.0]
-r = 1000.0
-material = "perlin"
+center = [0.3, -0.1, 0.0]
+r = 0.1
+material = "balls"
+
+[[objects]]
+kind = "sphere"
+center = [0.41, -0.2, -0.5]
+r = 0.08
+material = "balls"
+
+[[objects]]
+kind = "sphere"
+center = [0.42, -0.23, 0.1]
+r = 0.07
+material = "balls"
