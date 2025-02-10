@@ -1,7 +1,7 @@
 # Scene configuraton
-samples_per_pixel = 500
-samples_step_size = 100
-max_bounces = 80
+samples_per_pixel = 10
+samples_step_size = 10
+max_bounces = 10
 image_width = 1500
 bg = 0.0
 
@@ -28,8 +28,8 @@ color = [0.9, 0.2, 0.1]
 
 [materials.dragon]
 kind = "specular"
-# color = [0.1, 0.2, 0.07]
-color = [0.4, 0.1, 0.05]
+color = [0.1, 0.2, 0.07]
+# color = [0.4, 0.1, 0.05]
 spec_color = 0.2
 smoothness = 0.4
 spec_prob = 0.2
@@ -43,20 +43,21 @@ fuzz = 0.01
 kind = "specular"
 color = [0.8, 0.6, 0.2]
 spec_color = 0.3
-smoothness = 0.2
-spec_prob = 0.1
+smoothness = 0.5
+spec_prob = 0.2
 
 [materials.silver]
 kind = "specular"
 color = [0.2, 0.3, 0.8]
 spec_color = 0.9
 smoothness = 0.4
-spec_prob = 0.9
+spec_prob = 0.6
 
 
 # .obj meshes (only vertices are used)
 [[meshes]]
-path = "assets/Dragon_8K.obj"
+path = "assets/teapot.obj"
+# path = "assets/Dragon_800K.obj"
 material = "dragon"
 rotate = 18.0
 translate = [0.0, -0.02, 0.0]

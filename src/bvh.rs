@@ -7,7 +7,7 @@ use crate::{
 };
 use std::ops::Add;
 
-pub const MAX_BVH_DEPTH: usize = 16;
+pub const MAX_BVH_DEPTH: usize = 32;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct AABBox {
