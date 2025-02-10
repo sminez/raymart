@@ -229,12 +229,12 @@ fn specular_scatter(
     r_in: &Ray,
     rec: &HitRecord,
 ) -> Option<(Ray, Color)> {
-    let diffuse_dir = (rec.normal + V3::random_unit_vector()).unit_vector();
+    let diffuse_dir = rec.normal + V3::random_unit_vector();
     let is_specular = prob > random_range(0.0..1.0);
     let (dir, color) = if is_specular {
         let specular_dir = r_in.dir.reflect(rec.normal);
         (
-            (diffuse_dir * (1.0 - smoothness) + specular_dir * smoothness).unit_vector(),
+            diffuse_dir * (1.0 - smoothness) + specular_dir * smoothness,
             *spec_albedo,
         )
     } else {

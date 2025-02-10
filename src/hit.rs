@@ -309,6 +309,7 @@ pub struct Triangle {
     ab: V3,
     ac: V3,
     normal: V3,
+    inv_len: f32,
     mat: Material,
     pub bbox: AABBox,
 }
@@ -320,12 +321,14 @@ impl Triangle {
         let ab = b - a;
         let ac = c - a;
         let normal = ab.cross(&ac);
+        let inv_len = 1.0 / normal.length();
 
         Self {
             a,
             ab,
             ac,
             normal,
+            inv_len,
             mat,
             bbox: AABBox::new_enclosing(bbox1, bbox2),
         }
@@ -360,7 +363,15 @@ impl Triangle {
 
         let p = r.at(t);
 
-        Some(HitRecord::new(t, p, self.normal, r, self.mat, u, v))
+        Some(HitRecord::new(
+            t,
+            p,
+            self.normal * self.inv_len,
+            r,
+            self.mat,
+            u,
+            v,
+        ))
     }
 }
 
