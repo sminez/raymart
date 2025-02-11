@@ -111,6 +111,7 @@ pub enum Material {
     },
     Dielectric {
         ref_index: f32,
+        albedo: Color,
     },
     DiffuseLight {
         texture: Texture,
@@ -151,8 +152,8 @@ impl Material {
         Self::Metal { albedo, fuzz }
     }
 
-    pub fn dielectric(ref_index: f32) -> Material {
-        Self::Dielectric { ref_index }
+    pub fn dielectric(ref_index: f32, albedo: Color) -> Material {
+        Self::Dielectric { ref_index, albedo }
     }
 
     pub fn diffuse_light(albedo: Color) -> Material {
@@ -185,7 +186,9 @@ impl Material {
                 prob,
             } => specular_scatter(albedo, spec_albedo, *smoothness, *prob, r_in, rec),
             Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, rec),
-            Self::Dielectric { ref_index } => dielectric_scatter(*ref_index, r_in, rec),
+            Self::Dielectric { ref_index, albedo } => {
+                dielectric_scatter(*ref_index, albedo, r_in, rec)
+            }
             Self::Isotropic { texture } => isotropic_scatter(texture, rec),
             Self::DiffuseLight { .. } => None,
         }
@@ -244,7 +247,12 @@ fn specular_scatter(
     Some((Ray::new(rec.p, dir), color))
 }
 
-fn dielectric_scatter(ref_index: f32, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
+fn dielectric_scatter(
+    ref_index: f32,
+    albedo: &Color,
+    r_in: &Ray,
+    rec: &HitRecord,
+) -> Option<(Ray, Color)> {
     let ri = if rec.front_face {
         1.0 / ref_index
     } else {
@@ -262,7 +270,7 @@ fn dielectric_scatter(ref_index: f32, r_in: &Ray, rec: &HitRecord) -> Option<(Ra
         unit_dir.refract(rec.normal, ri)
     };
 
-    Some((Ray::new(rec.p, direction), Color::WHITE))
+    Some((Ray::new(rec.p, direction), *albedo))
 }
 
 /// Use Schlick's approximation for reflectance.

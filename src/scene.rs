@@ -59,6 +59,8 @@ pub enum MatSpec {
     },
     Dielectric {
         ref_index: f32,
+        #[serde(default)]
+        color: Option<ColorSpec>,
     },
     Isotropic {
         color: ColorSpec,
@@ -105,7 +107,10 @@ impl From<&MatSpec> for Material {
                 Material::checker(*scale, even.into(), odd.into())
             }
             MatSpec::Metal { color, fuzz } => Material::metal(color.into(), *fuzz),
-            MatSpec::Dielectric { ref_index } => Material::dielectric(*ref_index),
+            MatSpec::Dielectric { ref_index, color } => Material::dielectric(
+                *ref_index,
+                color.as_ref().unwrap_or(&ColorSpec::Grey(1.0)).into(),
+            ),
             MatSpec::Isotropic { color } => Material::isotropic(color.into()),
             MatSpec::Light { color } => Material::diffuse_light(color.into()),
             MatSpec::Noise { scale } => Material::noise(*scale),
