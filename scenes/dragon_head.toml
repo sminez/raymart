@@ -1,15 +1,15 @@
 # Scene configuraton
-samples_per_pixel = 1000
+samples_per_pixel = 100
 samples_step_size = 10
-max_bounces = 50
-image_width = 1000
+max_bounces = 10
+image_width = 1500
 bg = 0.0
 
 # Camera
-fov = 20.0
+fov = 18.5
 aspect_ratio = 1.0
-from = [1.2, 0.2, -2.85]
-at = [0.05, 0.05, -0.08]
+from = [0.67, 0.18, -1.45]
+at = [0.436, 0.2, -1.0]
 v_up = [0.0, 1.0, 0.0]
 
 # Debug point view
@@ -30,14 +30,10 @@ color = [0.9, 0.2, 0.1]
 kind = "specular"
 color = [0.1, 0.2, 0.07]
 # color = [0.4, 0.1, 0.05]
-spec_color = 0.3
-smoothness = 0.2
-spec_prob = 0.1
-
-[materials.gold]
-kind = "metal"
-color = [0.8, 0.6, 0.2]
-fuzz = 0.01
+# color = [0.7, 0.4, 0.2]
+spec_color = 0.1
+smoothness = 0.1
+spec_prob = 0.05
 
 [materials.ground]
 kind = "specular"
@@ -53,31 +49,46 @@ spec_color = 0.9
 smoothness = 0.7
 spec_prob = 0.6
 
+[materials.gold]
+kind = "metal"
+color = [0.8, 0.6, 0.2]
+fuzz = 0.01
+
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
+
 
 # .obj meshes (only vertices are used)
 [[meshes]]
-path = "assets/Dragon_8K.obj"
-# path = "assets/Dragon_80K.obj"
+path = "assets/Dragon_80K.obj"
 # path = "assets/testing/Dragon_800K.obj"
-material = "dragon"
-rotate = 18.0
+material = "glass"
+rotate = -8.0
+translate = [0.0, -0.02, 0.0]
 
 
 # Additional scene objects
 
 # "sun"
+# [[objects]]
+# kind = "sphere"
+# center = [1.4, 0.9, -0.8]
+# r = 0.7
+# material = "light"
+
 [[objects]]
 kind = "sphere"
-center = [1.4, 0.9, -0.8]
-r = 0.7
+center = [-0.2, 0.4, -0.2]
+r = 0.2
 material = "light"
 
 # ground
 [[objects]]
-kind = "ground"
+kind = "sphere"
 center = [0.0, -100.0, -1.0]
 r = 99.7
-material = "gold"
+material = "ground"
 
 # metalic shell
 [[objects]]
@@ -88,18 +99,6 @@ material = "silver"
 
 [[objects]]
 kind = "sphere"
-center = [0.3, -0.1, 0.0]
+center = [0.6, 0.2, -0.8]
 r = 0.1
-material = "gold"
-
-[[objects]]
-kind = "sphere"
-center = [0.41, -0.2, -0.5]
-r = 0.08
-material = "gold"
-
-[[objects]]
-kind = "sphere"
-center = [0.42, -0.23, 0.1]
-r = 0.07
 material = "gold"

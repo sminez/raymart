@@ -261,7 +261,7 @@ impl Bvh {
         let bbox = AABBox::new_containing(&hittables);
         let mut fat_nodes = vec![FatNode::new(bbox, 0)];
 
-        split(0, 0, hittables.len(), 0, &mut fat_nodes, &mut hittables);
+        split(0, 0, hittables.len(), 1, &mut fat_nodes, &mut hittables);
         let nodes = fat_nodes
             .into_iter()
             .map(|n| Node {
