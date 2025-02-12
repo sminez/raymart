@@ -146,12 +146,13 @@ impl Mesh {
 
     fn as_hittable(
         &self,
-        mats: &HashMap<String, MatSpec>,
+        mats: &HashMap<String, &'static Material>,
+        mat_specs: &HashMap<String, MatSpec>,
         as_points: bool,
         point_radius: f32,
     ) -> Hittable {
         let (models, _) = load_obj(&self.path, &GPU_LOAD_OPTIONS).unwrap();
-        let mat: Material = mats.get(&self.material).unwrap().into();
+        let mat = *mats.get(&self.material).unwrap();
         let mut objects = Vec::with_capacity(models.iter().map(|m| m.mesh.indices.len()).sum());
         let scale = if self.scale == 0.0 { 1.0 } else { self.scale };
 
@@ -205,7 +206,7 @@ impl Mesh {
         let mut h = Hittable::Bvh(Bvh::new(objects));
 
         if let Some(density) = self.meta.density {
-            h = ConstantMedium::new(h, density, self.color(mats)).into();
+            h = ConstantMedium::new(h, density, self.color(mat_specs)).into();
         }
 
         h
@@ -221,7 +222,11 @@ pub struct ObjSpec {
 }
 
 impl ObjSpec {
-    fn as_hittable(&self, mats: &HashMap<String, MatSpec>) -> Hittable {
+    fn as_hittable(
+        &self,
+        mats: &HashMap<String, &'static Material>,
+        mat_specs: &HashMap<String, MatSpec>,
+    ) -> Hittable {
         let mut h = self.hittable.as_hittable(mats);
         if let Some(angle) = self.meta.rotate {
             h = h.rotate(angle);
@@ -230,7 +235,7 @@ impl ObjSpec {
             h = h.translate(v.into());
         }
         if let Some(density) = self.meta.density {
-            h = ConstantMedium::new(h, density, self.hittable.color(mats)).into();
+            h = ConstantMedium::new(h, density, self.hittable.color(mat_specs)).into();
         }
 
         h
@@ -276,52 +281,32 @@ impl HittableSpec {
         mat.as_color()
     }
 
-    fn as_hittable(&self, mats: &HashMap<String, MatSpec>) -> Hittable {
+    fn as_hittable(&self, mats: &HashMap<String, &'static Material>) -> Hittable {
+        let mat = |material: &str| {
+            mats.get(material)
+                .unwrap_or_else(|| panic!("unknown material: {material}"))
+        };
+
         match self {
             Self::Sphere {
                 center,
                 r,
                 material,
-            } => Sphere::new(
-                (*center).into(),
-                *r,
-                mats.get(material)
-                    .unwrap_or_else(|| panic!("unknown material: {material}"))
-                    .into(),
-            )
-            .into(),
+            } => Sphere::new((*center).into(), *r, mat(material)).into(),
 
             Self::Box {
                 vert1,
                 vert2,
                 material,
-            } => cuboid(
-                (*vert1).into(),
-                (*vert2).into(),
-                mats.get(material)
-                    .unwrap_or_else(|| panic!("unknown material: {material}"))
-                    .into(),
-            ),
+            } => cuboid((*vert1).into(), (*vert2).into(), mat(material)),
 
-            Self::Quad { q, u, v, material } => Quad::new(
-                (*q).into(),
-                (*u).into(),
-                (*v).into(),
-                mats.get(material)
-                    .unwrap_or_else(|| panic!("unknown material: {material}"))
-                    .into(),
-            )
-            .into(),
+            Self::Quad { q, u, v, material } => {
+                Quad::new((*q).into(), (*u).into(), (*v).into(), mat(material)).into()
+            }
 
-            Self::Triangle { a, b, c, material } => Triangle::new(
-                (*a).into(),
-                (*b).into(),
-                (*c).into(),
-                mats.get(material)
-                    .unwrap_or_else(|| panic!("unknown material: {material}"))
-                    .into(),
-            )
-            .into(),
+            Self::Triangle { a, b, c, material } => {
+                Triangle::new((*a).into(), (*b).into(), (*c).into(), mat(material)).into()
+            }
         }
     }
 }
@@ -411,13 +396,23 @@ impl Scene {
 
     pub fn load_scene(&self) -> (Vec<Hittable>, Camera) {
         let mut hittables = Vec::new();
+        let materials: HashMap<String, &'static Material> = self
+            .materials
+            .iter()
+            .map(|(k, v)| (k.clone(), Box::leak(Box::new(v.into())) as &'static _))
+            .collect();
 
         for mesh in self.meshes.iter() {
-            hittables.push(mesh.as_hittable(&self.materials, self.as_points, self.point_radius));
+            hittables.push(mesh.as_hittable(
+                &materials,
+                &self.materials,
+                self.as_points,
+                self.point_radius,
+            ));
         }
 
         for obj in self.objects.clone().into_iter() {
-            hittables.push(obj.as_hittable(&self.materials));
+            hittables.push(obj.as_hittable(&materials, &self.materials));
         }
 
         let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);

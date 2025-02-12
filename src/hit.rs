@@ -89,13 +89,21 @@ pub struct HitRecord {
     pub p: P3,
     pub normal: V3,
     pub front_face: bool,
-    pub mat: Material,
+    pub mat: &'static Material,
     pub u: f32,
     pub v: f32,
 }
 
 impl HitRecord {
-    pub fn new(t: f32, p: P3, outward_normal: V3, r: &Ray, mat: Material, u: f32, v: f32) -> Self {
+    pub fn new(
+        t: f32,
+        p: P3,
+        outward_normal: V3,
+        r: &Ray,
+        mat: &'static Material,
+        u: f32,
+        v: f32,
+    ) -> Self {
         let front_face = r.dir.dot(&outward_normal) < 0.0;
         let normal = if front_face {
             outward_normal
@@ -246,12 +254,12 @@ pub struct Sphere {
     center: P3,
     inv_radius: f32,
     radius_sq: f32,
-    mat: Material,
+    mat: &'static Material,
     bbox: AABBox,
 }
 
 impl Sphere {
-    pub fn new(center: P3, radius: f32, mat: Material) -> Self {
+    pub fn new(center: P3, radius: f32, mat: &'static Material) -> Self {
         let r = radius.max(0.0);
         let rvec = V3::new(r, r, r);
         let bbox = AABBox::new_from_points(center - rvec, center + rvec);
@@ -310,12 +318,12 @@ pub struct Triangle {
     ac: V3,
     normal: V3,
     unit_normal: V3,
-    mat: Material,
+    mat: &'static Material,
     pub bbox: AABBox,
 }
 
 impl Triangle {
-    pub fn new(a: P3, b: P3, c: P3, mat: Material) -> Triangle {
+    pub fn new(a: P3, b: P3, c: P3, mat: &'static Material) -> Triangle {
         let bbox1 = AABBox::new_from_points(a, b);
         let bbox2 = AABBox::new_from_points(a, c);
         let ab = b - a;
@@ -377,12 +385,12 @@ pub struct Quad {
     w: V3,
     normal: V3,
     d: f32,
-    mat: Material,
+    mat: &'static Material,
     bbox: AABBox,
 }
 
 impl Quad {
-    pub fn new(q: P3, u: V3, v: V3, mat: Material) -> Quad {
+    pub fn new(q: P3, u: V3, v: V3, mat: &'static Material) -> Quad {
         let diag1 = AABBox::new_from_points(q, q + u + v);
         let diag2 = AABBox::new_from_points(q + u, q + v);
         let bbox = AABBox::new_enclosing(diag1, diag2);
@@ -437,7 +445,7 @@ impl Quad {
 }
 
 /// Construct a closed cuboid containing the two provided opposite vertices: a, b.
-pub fn cuboid(a: P3, b: P3, mat: Material) -> Hittable {
+pub fn cuboid(a: P3, b: P3, mat: &'static Material) -> Hittable {
     let mut sides = HittableList::default();
     let min = P3::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z));
     let max = P3::new(a.x.max(b.x), a.y.max(b.y), a.z.max(b.z));
@@ -460,7 +468,7 @@ pub fn cuboid(a: P3, b: P3, mat: Material) -> Hittable {
 pub struct ConstantMedium {
     boundary: &'static Hittable,
     neg_inv_density: f32,
-    phase_func: Material,
+    phase_func: &'static Material,
 }
 
 impl ConstantMedium {
@@ -474,7 +482,7 @@ impl ConstantMedium {
         Self {
             boundary: Box::leak(Box::new(boundary)),
             neg_inv_density,
-            phase_func: Material::isotropic_texture(texture),
+            phase_func: Box::leak(Box::new(Material::isotropic_texture(texture))),
         }
     }
 
