@@ -23,4 +23,4 @@ toml = "0.8.20"
 wide = "0.7.32"
 
 [dev-dependencies]
-simple_test_case = "1.2.0"
+simple_test_case = "1"
