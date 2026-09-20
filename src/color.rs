@@ -19,13 +19,19 @@ impl Color {
         Color::new(v, v, v)
     }
 
-    pub fn ppm_string(&self) -> String {
+    pub fn to_rgb(&self) -> [u8; 3] {
         // Translate the [0,1] component values to the byte range [0,255].
         let intensity = Interval::new(0.0, 0.999);
-        let ir = (256.0 * intensity.clamp(linear_to_gamma(self.x))) as i64;
-        let ig = (256.0 * intensity.clamp(linear_to_gamma(self.y))) as i64;
-        let ib = (256.0 * intensity.clamp(linear_to_gamma(self.z))) as i64;
+        let r = (256.0 * intensity.clamp(linear_to_gamma(self.x))) as u8;
+        let g = (256.0 * intensity.clamp(linear_to_gamma(self.y))) as u8;
+        let b = (256.0 * intensity.clamp(linear_to_gamma(self.z))) as u8;
 
-        format!("{ir} {ig} {ib}\n")
+        [r, g, b]
+    }
+
+    pub fn ppm_string(&self) -> String {
+        let [r, g, b] = self.to_rgb();
+
+        format!("{r} {g} {b}\n")
     }
 }

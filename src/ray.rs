@@ -1,11 +1,13 @@
 use crate::{
     bvh::{Bvh, MAX_BVH_DEPTH},
     hit::Interval,
+    sdl::MainThreadState,
     v3::{P3, V3},
-    Color,
+    Backend, Color,
 };
 use rand::random_range;
 use rayon::prelude::*;
+use sdl2::{event::Event, keyboard::Keycode};
 use std::{cmp::max, fs, time::Instant};
 
 #[derive(Debug, Clone, Copy)]
@@ -92,6 +94,10 @@ impl Camera {
         }
     }
 
+    pub fn dims(&self) -> (u32, u32) {
+        (self.image_width as u32, self.image_height as u32)
+    }
+
     pub fn render_ppm(&self, bvh: Bvh) {
         let start = Instant::now();
         let mut pixels = Vec::new();
@@ -114,18 +120,72 @@ impl Camera {
                 let k = (i - 1) as f32 / i as f32;
                 pixels = pixels
                     .into_iter()
-                    .zip(scaled.into_iter())
+                    .zip(scaled)
+                    .map(|(prev, p)| prev * k + p)
+                    .collect()
+            }
+        }
+
+        let s: String = pixels.iter().map(|c| c.ppm_string()).collect();
+        fs::write(
+            "test.ppm",
+            format!("P3\n{} {}\n255\n{s}", self.image_width, self.image_height),
+        )
+        .unwrap();
+
+        let render_time = Instant::now().duration_since(start);
+        eprintln!("\nRender time: {}s", render_time.as_secs());
+    }
+
+    pub fn render_sdl(&self, bvh: Bvh, mts: &mut MainThreadState, backend: &mut Backend<'_>) {
+        let start = Instant::now();
+        let mut pixels = Vec::new();
+
+        'iters: for i in 1..=self.iterations {
+            let scale = 1.0 / (i * self.samples_pp) as f32;
+            let new_pixels = self.render_pass(&bvh);
+
+            let render_time = Instant::now().duration_since(start);
+            eprintln!(
+                "Render time so far ({i}/{}): {}s",
+                self.iterations,
+                render_time.as_secs()
+            );
+
+            let scaled = new_pixels.into_par_iter().map(|p| p * scale).collect();
+            if pixels.is_empty() {
+                pixels = scaled;
+            } else {
+                let k = (i - 1) as f32 / i as f32;
+                pixels = pixels
+                    .into_iter()
+                    .zip(scaled)
                     .map(|(prev, p)| prev * k + p)
                     .collect()
             }
 
-            let s: String = pixels.iter().map(|c| c.ppm_string()).collect();
-            fs::write(
-                "test.ppm",
-                format!("P3\n{} {}\n255\n{s}", self.image_width, self.image_height),
-            )
-            .unwrap();
+            backend.render(&pixels).unwrap();
+
+            while let Some(evt) = mts.poll_event() {
+                match evt {
+                    Event::Quit { .. } => break 'iters,
+                    Event::KeyDown {
+                        keycode: Some(Keycode::Q | Keycode::Escape),
+                        repeat: false,
+                        ..
+                    } => break 'iters,
+                    _ => (),
+                }
+            }
         }
+
+        eprintln!("writting ppm file");
+        let s: String = pixels.iter().map(|c| c.ppm_string()).collect();
+        fs::write(
+            "test.ppm",
+            format!("P3\n{} {}\n255\n{s}", self.image_width, self.image_height),
+        )
+        .unwrap();
 
         let render_time = Instant::now().duration_since(start);
         eprintln!("\nRender time: {}s", render_time.as_secs());
@@ -145,7 +205,7 @@ impl Camera {
                             a
                         })
                 });
-                eprint!(".");
+                // eprint!(".");
                 res
             })
             .collect()

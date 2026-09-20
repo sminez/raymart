@@ -1,14 +1,14 @@
 # Scene configuraton
-samples_per_pixel = 1000
-samples_step_size = 100
-max_bounces = 20
-image_width = 1500
+samples_per_pixel = 3000
+samples_step_size = 10
+max_bounces = 30
+image_width = 1800
 bg = 0.0
 
 # Camera
 fov = 40.0
 aspect_ratio = 1.0
-from = [278.0, 278.0, -760.0]
+from = [278.0, 278.0, -800.0]
 at = [278.0, 278.0, 0.0]
 v_up = [0.0, 1.0, 0.0]
 
@@ -18,18 +18,9 @@ point_radius = 0.005
 
 
 # Materials for meshes and objects
-[materials.dragon_red]
-kind = "solid"
-color = [0.6, 0.2, 0.1]
-
-[materials.glass]
-kind = "dielectric"
-ref_index = 1.33
-color = [0.8, 1.0, 0.6]
-
 [materials.light]
 kind = "light"
-color = 15.0
+color = 25.0
 
 [materials.red]
 kind = "solid"
@@ -39,27 +30,43 @@ color = [0.65, 0.05, 0.05]
 kind = "solid"
 color = [0.12, 0.45, 0.15]
 
-[materials.white]
-kind = "solid"
-color = 0.73
+# [materials.white]
+# kind = "solid"
+# color = 0.73
 
 # Use for the infinite mirror effect
-# [materials.white]
-# kind = "metal"
-# color = 0.93
-# fuzz = 0.0
+[materials.white]
+kind = "metal"
+color = 0.93
+fuzz = 0.0
 
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
 
-# .obj meshes (only vertices are used)
-[[meshes]]
-path = "assets/Dragon_8K.obj"
-material = "glass"
-scale = 530.0
-rotate = 55.0
-translate = [290.0, 150.0, 270.0]
-
+[materials.air]
+kind = "dielectric"
+ref_index = 0.769
 
 # Additional scene objects
+
+[[objects]]
+kind = "sphere"
+center = [343.0, 250.0, 342.0]
+r = 150.0
+material = "glass"
+
+[[objects]]
+kind = "sphere"
+center = [343.0, 250.0, 342.0]
+r = 120.0
+material = "air"
+
+[[objects]]
+kind = "sphere"
+center = [343.0, 250.0, 342.0]
+r = 100.0
+material = "glass"
 
 
 # Cornell Box
