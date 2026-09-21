@@ -9,7 +9,7 @@ use sdl2::{
     EventPump, Sdl, VideoSubsystem,
 };
 
-use crate::Color;
+use crate::{color::to_rgb, Color};
 
 pub struct MainThreadState {
     _ctx: Sdl,
@@ -93,7 +93,7 @@ impl<'a> Backend<'a> {
     pub fn render(&mut self, pixels: &[Color]) -> anyhow::Result<()> {
         for (i, &color) in pixels.iter().enumerate() {
             let base = i * 4;
-            let [r, g, b] = color.to_rgb();
+            let [r, g, b] = to_rgb(color);
 
             self.argb_buffer[base] = b;
             self.argb_buffer[base + 1] = g;

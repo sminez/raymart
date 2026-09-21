@@ -3,6 +3,7 @@ use crate::{
     material::{Material, Texture},
     Color, Ray, P3, V3,
 };
+use glam::Mat3;
 use rand::random_range;
 use std::{f32::consts::PI, ops::Add};
 
@@ -83,7 +84,7 @@ impl Add<Interval> for f32 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct HitRecord {
     pub t: f32,
     pub p: P3,
@@ -104,7 +105,7 @@ impl HitRecord {
         u: f32,
         v: f32,
     ) -> Self {
-        let front_face = r.dir.dot(&outward_normal) < 0.0;
+        let front_face = r.dir.dot(outward_normal) < 0.0;
         let normal = if front_face {
             outward_normal
         } else {
@@ -126,7 +127,7 @@ impl HitRecord {
     ///
     /// `outward_normal` is assumed to be of unit length.
     pub fn set_face_normal(&mut self, r: &Ray, outward_normal: V3) {
-        self.front_face = r.dir.dot(&outward_normal) < 0.0;
+        self.front_face = r.dir.dot(outward_normal) < 0.0;
         self.normal = if self.front_face {
             outward_normal
         } else {
@@ -261,7 +262,7 @@ pub struct Sphere {
 impl Sphere {
     pub fn new(center: P3, radius: f32, mat: &'static Material) -> Self {
         let r = radius.max(0.0);
-        let rvec = V3::new(r, r, r);
+        let rvec = V3::splat(r);
         let bbox = AABBox::new_from_points(center - rvec, center + rvec);
 
         Self {
@@ -278,9 +279,9 @@ impl Sphere {
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         let oc = self.center - r.orig;
 
-        let a = r.dir.square_length();
-        let h = r.dir.dot(&oc);
-        let c = oc.square_length() - self.radius_sq;
+        let a = r.dir.length_squared();
+        let h = r.dir.dot(oc);
+        let c = oc.length_squared() - self.radius_sq;
         let discriminant = h * h - a * c;
 
         if discriminant < 0.0 {
@@ -328,8 +329,8 @@ impl Triangle {
         let bbox2 = AABBox::new_from_points(a, c);
         let ab = b - a;
         let ac = c - a;
-        let normal = ab.cross(&ac);
-        let unit_normal = normal.unit_vector();
+        let normal = ab.cross(ac);
+        let unit_normal = normal.normalize();
 
         Self {
             a,
@@ -346,25 +347,25 @@ impl Triangle {
     //   https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
     pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         // If r . normal is 0 then the ray is parallel to the triangle plane and no hit is possible
-        let det = -(r.dir.dot(&self.normal));
+        let det = -(r.dir.dot(self.normal));
         if det.abs() < 1e-8 {
             return None;
         }
 
         let inv_det = 1.0 / det;
         let ao = r.orig - self.a;
-        let r_x_ao = ao.cross(&r.dir);
+        let r_x_ao = ao.cross(r.dir);
 
         // hit point needs to be contained by the ray interval
-        let t = ao.dot(&self.normal) * inv_det;
+        let t = ao.dot(self.normal) * inv_det;
         if !ray_t.surrounds(t) {
             return None;
         }
 
         // barycentric coords of the intersection point
         //   https://en.wikipedia.org/wiki/Barycentric_coordinate_system
-        let u = self.ac.dot(&r_x_ao) * inv_det;
-        let v = -self.ab.dot(&r_x_ao) * inv_det;
+        let u = self.ac.dot(r_x_ao) * inv_det;
+        let v = -self.ab.dot(r_x_ao) * inv_det;
         if u < 0.0 || v < 0.0 || u + v > 1.0 {
             return None;
         }
@@ -395,10 +396,10 @@ impl Quad {
         let diag2 = AABBox::new_from_points(q + u, q + v);
         let bbox = AABBox::new_enclosing(diag1, diag2);
 
-        let n = u.cross(&v);
-        let normal = n.unit_vector();
-        let d = normal.dot(&q);
-        let w = n / n.dot(&n);
+        let n = u.cross(v);
+        let normal = n.normalize();
+        let d = normal.dot(q);
+        let w = n / n.dot(n);
 
         Self {
             q,
@@ -413,20 +414,20 @@ impl Quad {
     }
 
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        let denom = self.normal.dot(&r.dir);
+        let denom = self.normal.dot(r.dir);
         if denom.abs() < 1e-8 {
             return None; // ray is parallel to our plane
         }
 
-        let t = (self.d - self.normal.dot(&r.orig)) / denom;
+        let t = (self.d - self.normal.dot(r.orig)) / denom;
         if !ray_t.contains(t) {
             return None; // hit point is outside of the ray interval
         }
 
         let intersection = r.at(t);
         let planar_hitp = intersection - self.q;
-        let alpha = self.w.dot(&planar_hitp.cross(&self.v));
-        let beta = self.w.dot(&self.u.cross(&planar_hitp));
+        let alpha = self.w.dot(planar_hitp.cross(self.v));
+        let beta = self.w.dot(self.u.cross(planar_hitp));
 
         if !(Interval::UNIT.contains(alpha) && Interval::UNIT.contains(beta)) {
             return None;
@@ -553,36 +554,26 @@ impl Translate {
 #[derive(Debug, Clone)]
 pub struct Rotate {
     inner: Box<Hittable>,
-    sin_theta: f32,
-    cos_theta: f32,
+    to_obj: Mat3,
+    to_world: Mat3,
     bbox: AABBox,
 }
 
 impl Rotate {
     fn new(inner: Hittable, angle: f32) -> Rotate {
-        let rad = angle.to_radians();
-        let sin_theta = rad.sin();
-        let cos_theta = rad.cos();
+        let to_world = Mat3::from_rotation_y(angle.to_radians());
+        let to_obj = to_world.transpose();
         let bbox = inner.bounding_box();
 
-        let mut min = P3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
-        let mut max = P3::new(-f32::INFINITY, -f32::INFINITY, -f32::INFINITY);
+        let mut min = P3::splat(f32::INFINITY);
+        let mut max = P3::splat(-f32::INFINITY);
 
-        for i in 0..2 {
-            for j in 0..2 {
-                for k in 0..2 {
-                    let x = i as f32 * bbox.x.max + (1 - i) as f32 * bbox.x.min;
-                    let y = j as f32 * bbox.y.max + (1 - j) as f32 * bbox.y.min;
-                    let z = k as f32 * bbox.z.max + (1 - k) as f32 * bbox.z.min;
-
-                    let new_x = cos_theta * x + sin_theta * z;
-                    let new_z = -sin_theta * x + cos_theta * z;
-                    let v = V3::new(new_x, y, new_z);
-
-                    for c in 0..3 {
-                        min[c] = min[c].min(v[c]);
-                        max[c] = max[c].max(v[c]);
-                    }
+        for x in [bbox.x.min, bbox.x.max] {
+            for y in [bbox.y.min, bbox.y.max] {
+                for z in [bbox.z.min, bbox.z.max] {
+                    let v = to_world * V3::new(x, y, z);
+                    min = min.min(v);
+                    max = max.max(v);
                 }
             }
         }
@@ -591,40 +582,22 @@ impl Rotate {
 
         Self {
             inner: Box::new(inner),
-            sin_theta,
-            cos_theta,
+            to_obj,
+            to_world,
             bbox,
         }
     }
 
-    #[inline]
-    fn rot_f(&self, v_in: V3) -> V3 {
-        V3::new(
-            self.cos_theta * v_in.x - self.sin_theta * v_in.z,
-            v_in.y,
-            self.sin_theta * v_in.x + self.cos_theta * v_in.z,
-        )
-    }
-
-    #[inline]
-    fn rot_b(&self, v_in: V3) -> V3 {
-        V3::new(
-            self.cos_theta * v_in.x + self.sin_theta * v_in.z,
-            v_in.y,
-            -self.sin_theta * v_in.x + self.cos_theta * v_in.z,
-        )
-    }
-
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         // Transform the ray from world space to object space.
-        let rot_r = Ray::new(self.rot_f(r.orig), self.rot_f(r.dir));
+        let rot_r = Ray::new(self.to_obj * r.orig, self.to_obj * r.dir);
 
         // If the rotated ray hits...
         let mut hr = self.inner.hits(&rot_r, ray_t)?;
 
         // apply the rotation to the hit record and return
-        hr.p = self.rot_b(hr.p);
-        hr.normal = self.rot_b(hr.normal);
+        hr.p = self.to_world * hr.p;
+        hr.normal = self.to_world * hr.normal;
 
         Some(hr)
     }

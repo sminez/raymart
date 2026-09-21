@@ -1,16 +1,16 @@
 use crate::{
     bvh::{Bvh, MAX_BVH_DEPTH},
+    color,
     hit::Interval,
     sdl::MainThreadState,
-    v3::{P3, V3},
-    Backend, Color,
+    v3, Backend, Color, P3, V3,
 };
 use rand::random_range;
 use rayon::prelude::*;
 use sdl2::{event::Event, keyboard::Keycode};
 use std::{cmp::max, fs, time::Instant};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Copy, Clone)]
 pub struct Camera {
     image_width: u16,   // rendered image width (pixels)
     image_height: u16,  // rendered image height (pixels)
@@ -59,9 +59,9 @@ impl Camera {
         let viewport_width = viewport_height * (image_width as f32 / image_height as f32);
 
         // Calculate the u,v,w unit basis vectors for the camera coordinate frame.
-        let w = (look_from - look_at).unit_vector();
-        let u = v_up.cross(&w);
-        let v = w.cross(&u);
+        let w = (look_from - look_at).normalize();
+        let u = v_up.cross(w).normalize();
+        let v = w.cross(u);
 
         let viewport_u = viewport_width * u;
         let viewport_v = viewport_height * -v;
@@ -96,45 +96,6 @@ impl Camera {
 
     pub fn dims(&self) -> (u32, u32) {
         (self.image_width as u32, self.image_height as u32)
-    }
-
-    pub fn render_ppm(&self, bvh: Bvh) {
-        let start = Instant::now();
-        let mut pixels = Vec::new();
-
-        for i in 1..=self.iterations {
-            let scale = 1.0 / (i * self.samples_pp) as f32;
-            let new_pixels = self.render_pass(&bvh);
-
-            let render_time = Instant::now().duration_since(start);
-            eprintln!(
-                "\nRender time so far ({i}/{}): {}s",
-                self.iterations,
-                render_time.as_secs()
-            );
-
-            let scaled = new_pixels.into_par_iter().map(|p| p * scale).collect();
-            if pixels.is_empty() {
-                pixels = scaled;
-            } else {
-                let k = (i - 1) as f32 / i as f32;
-                pixels = pixels
-                    .into_iter()
-                    .zip(scaled)
-                    .map(|(prev, p)| prev * k + p)
-                    .collect()
-            }
-        }
-
-        let s: String = pixels.iter().map(|c| c.ppm_string()).collect();
-        fs::write(
-            "test.ppm",
-            format!("P3\n{} {}\n255\n{s}", self.image_width, self.image_height),
-        )
-        .unwrap();
-
-        let render_time = Instant::now().duration_since(start);
-        eprintln!("\nRender time: {}s", render_time.as_secs());
     }
 
     pub fn render_sdl(&self, bvh: Bvh, mts: &mut MainThreadState, backend: &mut Backend<'_>) {
@@ -180,7 +141,7 @@ impl Camera {
         }
 
         eprintln!("writting ppm file");
-        let s: String = pixels.iter().map(|c| c.ppm_string()).collect();
+        let s: String = pixels.iter().map(|c| color::ppm_string(*c)).collect();
         fs::write(
             "test.ppm",
             format!("P3\n{} {}\n255\n{s}", self.image_width, self.image_height),
@@ -195,7 +156,7 @@ impl Camera {
         (0..self.image_height)
             .into_par_iter()
             .flat_map(move |j| {
-                let res = (0..self.image_width).into_par_iter().map(move |i| {
+                (0..self.image_width).into_par_iter().map(move |i| {
                     let (fi, fj) = (i as f32, j as f32);
                     (0..self.samples_pp)
                         .into_par_iter()
@@ -204,9 +165,7 @@ impl Camera {
                             a += b;
                             a
                         })
-                });
-                // eprint!(".");
-                res
+                })
             })
             .collect()
     }
@@ -225,19 +184,19 @@ impl Camera {
             self.defocus_disk_sample()
         };
 
-        Ray::new(self.center, sample - ray_origin)
+        Ray::new(ray_origin, sample - ray_origin)
     }
 
     // Returns a random point in the camera defocus disk.
     fn defocus_disk_sample(&self) -> P3 {
-        let p = V3::random_in_unit_disk();
+        let p = v3::random_in_unit_disk();
 
         self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
     }
 
     fn ray_color(&self, mut r: Ray, bvh: &Bvh) -> Color {
-        let mut incoming_light = Color::BLACK;
-        let mut rcolor = Color::WHITE;
+        let mut incoming_light = color::BLACK;
+        let mut rcolor = color::WHITE;
         let mut stack = [0; MAX_BVH_DEPTH];
 
         for _ in 0..self.max_bounces {

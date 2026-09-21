@@ -24,6 +24,7 @@ sdl2 = { version = "0.37.0", features = ["image"] }
 tobj = { version = "4.0.3", default-features = false, features = [] }
 toml = "0.8.20"
 wide = "0.7.32"
+glam = "0.33.8"
 
 [dev-dependencies]
 simple_test_case = "1"

@@ -60,15 +60,14 @@ impl AABBox {
 
     /// Treat the two points a and b as extrema for the bounding box, so we don't require a
     /// particular minimum/maximum coordinate order.
-    pub const fn new_from_points(a: P3, b: P3) -> AABBox {
-        let (x1, x2) = if a.x <= b.x { (a.x, b.x) } else { (b.x, a.x) };
-        let (y1, y2) = if a.y <= b.y { (a.y, b.y) } else { (b.y, a.y) };
-        let (z1, z2) = if a.z <= b.z { (a.z, b.z) } else { (b.z, a.z) };
+    pub fn new_from_points(a: P3, b: P3) -> AABBox {
+        let min = a.min(b);
+        let max = a.max(b);
 
         let mut bbox = AABBox {
-            x: Interval::new(x1, x2),
-            y: Interval::new(y1, y2),
-            z: Interval::new(z1, z2),
+            x: Interval::new(min.x, max.x),
+            y: Interval::new(min.y, max.y),
+            z: Interval::new(min.z, max.z),
             min: wide::f32x4::ZERO,
             max: wide::f32x4::ZERO,
         };

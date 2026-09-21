@@ -1,4 +1,4 @@
-use crate::{hit::Interval, noise::Perlin, Color, HitRecord, Ray, P3, V3};
+use crate::{color, hit::Interval, noise::Perlin, v3, Color, HitRecord, Ray, P3};
 use image::{open, RgbImage};
 use rand::random_range;
 
@@ -78,8 +78,8 @@ fn image_value(mut u: f32, mut v: f32, _p: P3, raw: &RgbImage) -> Color {
     u = Interval::UNIT.clamp(u);
     v = 1.0 - Interval::UNIT.clamp(v); // Flip V to image coordinates
 
-    let i = (u * raw.width() as f32) as u32;
-    let j = (v * raw.height() as f32) as u32;
+    let i = (u * (raw.width() - 1) as f32) as u32;
+    let j = (v * (raw.height() - 1) as f32) as u32;
     let px = raw.get_pixel(i, j);
     let scale = 1.0 / 255.0;
 
@@ -91,7 +91,7 @@ fn image_value(mut u: f32, mut v: f32, _p: P3, raw: &RgbImage) -> Color {
 }
 
 fn noise_value(p: P3, noise: &Perlin<256>, scale: f32) -> Color {
-    Color::new(0.5, 0.5, 0.5) * (1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
+    Color::splat(0.5) * (1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -197,14 +197,14 @@ impl Material {
     pub fn color_emitted(&self, u: f32, v: f32, p: P3) -> Color {
         match self {
             Self::DiffuseLight { texture } => texture.value(u, v, p),
-            _ => Color::BLACK,
+            _ => color::BLACK,
         }
     }
 }
 
 fn lambertian_scatter(texture: &Texture, rec: &HitRecord) -> Option<(Ray, Color)> {
-    let mut scatter_direction = rec.normal + V3::random_unit_vector();
-    if scatter_direction.near_zero() {
+    let mut scatter_direction = rec.normal + v3::random_unit_vector();
+    if v3::near_zero(&scatter_direction) {
         scatter_direction = rec.normal;
     }
     let scattered = Ray::new(rec.p, scatter_direction);
@@ -214,10 +214,10 @@ fn lambertian_scatter(texture: &Texture, rec: &HitRecord) -> Option<(Ray, Color)
 }
 
 fn metal_scatter(albedo: &Color, fuzz: f32, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
-    let reflected = r_in.dir.reflect(rec.normal).unit_vector() + (fuzz * V3::random_unit_vector());
+    let reflected = r_in.dir.reflect(rec.normal).normalize() + (fuzz * v3::random_unit_vector());
     let scattered = Ray::new(rec.p, reflected);
 
-    if scattered.dir.dot(&rec.normal) > 0.0 {
+    if scattered.dir.dot(rec.normal) > 0.0 {
         Some((scattered, *albedo))
     } else {
         None
@@ -232,14 +232,11 @@ fn specular_scatter(
     r_in: &Ray,
     rec: &HitRecord,
 ) -> Option<(Ray, Color)> {
-    let diffuse_dir = rec.normal + V3::random_unit_vector();
+    let diffuse_dir = rec.normal + v3::random_unit_vector();
     let is_specular = prob > random_range(0.0..1.0);
     let (dir, color) = if is_specular {
         let specular_dir = r_in.dir.reflect(rec.normal);
-        (
-            diffuse_dir * (1.0 - smoothness) + specular_dir * smoothness,
-            *spec_albedo,
-        )
+        (diffuse_dir.lerp(specular_dir, smoothness), *spec_albedo)
     } else {
         (diffuse_dir, *albedo)
     };
@@ -258,9 +255,9 @@ fn dielectric_scatter(
     } else {
         ref_index
     };
-    let unit_dir = r_in.dir.unit_vector();
+    let unit_dir = r_in.dir.normalize();
 
-    let cos_theta = (-unit_dir.dot(&rec.normal)).min(1.0);
+    let cos_theta = (-unit_dir.dot(rec.normal)).min(1.0);
     let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
     let cannot_refract = ri * sin_theta > 1.0;
 
@@ -282,7 +279,7 @@ fn reflectance(cosine: f32, ref_index: f32) -> f32 {
 }
 
 fn isotropic_scatter(texture: &Texture, rec: &HitRecord) -> Option<(Ray, Color)> {
-    let scattered = Ray::new(rec.p, V3::random_unit_vector());
+    let scattered = Ray::new(rec.p, v3::random_unit_vector());
     let attenuation = texture.value(rec.u, rec.v, rec.p);
 
     Some((scattered, attenuation))

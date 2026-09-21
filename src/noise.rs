@@ -1,4 +1,4 @@
-use crate::{P3, V3};
+use crate::{v3, P3, V3};
 use rand::random_range;
 
 #[derive(Debug, Clone, Copy)]
@@ -23,14 +23,14 @@ impl<const N: usize> Perlin<N> {
         let mut perm_z = [0; N];
 
         for i in 0..N {
-            rand_vec[i] = V3::random(-1.0, 1.0).unit_vector();
+            rand_vec[i] = v3::random(-1.0, 1.0).normalize();
             for s in [&mut perm_x, &mut perm_y, &mut perm_z] {
                 s[i] = i;
             }
         }
 
         for s in [&mut perm_x, &mut perm_y, &mut perm_z] {
-            for i in (N - 1)..0 {
+            for i in (1..N).rev() {
                 let target = random_range(0..i);
                 s.swap(i, target);
             }
@@ -82,7 +82,7 @@ impl<const N: usize> Perlin<N> {
                     acc += (fi * uu + (1.0 - fi) * (1.0 - uu))
                         * (fj * vv + (1.0 - fj) * (1.0 - vv))
                         * (fk * ww + (1.0 - fk) * (1.0 - ww))
-                        * c[i][j][k].dot(&weight);
+                        * c[i][j][k].dot(weight);
                 }
             }
         }

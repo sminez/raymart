@@ -9,6 +9,7 @@ use crate::{
     ray::Camera,
     v, Color, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, STEP_SIZE, V3,
 };
+use glam::Mat3;
 use serde::Deserialize;
 use std::{collections::HashMap, fs};
 use tobj::{load_obj, GPU_LOAD_OPTIONS};
@@ -31,7 +32,7 @@ impl From<&ColorSpec> for Color {
     fn from(value: &ColorSpec) -> Self {
         match *value {
             ColorSpec::RGB([r, g, b]) => Color::new(r, g, b),
-            ColorSpec::Grey(v) => Color::grey(v),
+            ColorSpec::Grey(v) => V3::splat(v),
         }
     }
 }
@@ -156,6 +157,12 @@ impl Mesh {
         let mut objects = Vec::with_capacity(models.iter().map(|m| m.mesh.indices.len()).sum());
         let scale = if self.scale == 0.0 { 1.0 } else { self.scale };
 
+        let rotation = self
+            .meta
+            .rotate
+            .map(|angle| Mat3::from_rotation_y(angle.to_radians()));
+        let translation = self.meta.translate.map(V3::from);
+
         eprintln!("Loading meshes from {:?}...", self.path);
         for m in models {
             eprintln!("  mesh name = {:?}", m.name);
@@ -167,25 +174,15 @@ impl Mesh {
                 let mut b = pt!(ps, ix, i * 3 + 1) * scale;
                 let mut c = pt!(ps, ix, i * 3 + 2) * scale;
 
-                if let Some(angle) = self.meta.rotate {
-                    let rad = angle.to_radians();
-                    let sin_theta = rad.sin();
-                    let cos_theta = rad.cos();
-
-                    for v in [&mut a, &mut b, &mut c] {
-                        *v = V3::new(
-                            cos_theta * v.x + sin_theta * v.z,
-                            v.y,
-                            -sin_theta * v.x + cos_theta * v.z,
-                        );
-                    }
+                if let Some(rotation) = rotation {
+                    a = rotation * a;
+                    b = rotation * b;
+                    c = rotation * c;
                 }
-
-                if let Some(v) = self.meta.translate {
-                    let v: V3 = v.into();
-                    a += v;
-                    b += v;
-                    c += v;
+                if let Some(offset) = translation {
+                    a += offset;
+                    b += offset;
+                    c += offset;
                 }
 
                 if as_points {
