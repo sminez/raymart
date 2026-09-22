@@ -4,7 +4,7 @@ export RUSTDOCFLAGS := "-D warnings -D rustdoc::broken-intra-doc-links"
 # Render the provided scene (default=scene.toml)
 scene SCENE="":
 	cargo run --release {{SCENE}}
-	#convert test.ppm test.png
+	convert test.ppm test.png
 
 # Debug render the provided scene (default=scene.toml)
 debug-scene SCENE="":

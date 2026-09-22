@@ -164,13 +164,16 @@ impl Camera {
             .for_each(|(j, row)| {
                 let fj = j as f32;
                 let mut rng = Rng::seed_from_u64(((i * RAND_JITTER) + j) as u64);
+                let mut r_in = Ray::default();
+                let mut r_out = Ray::default();
 
                 for (i, px) in row.iter_mut().enumerate() {
                     let fi = i as f32;
                     let mut acc = Color::default();
 
                     for _ in 0..self.samples_pp {
-                        acc += self.ray_color(self.get_ray(fi, fj, &mut rng), bvh, &mut rng);
+                        self.get_ray(fi, fj, &mut r_in, &mut rng);
+                        acc += self.ray_color(&mut r_in, &mut r_out, bvh, &mut rng);
                     }
 
                     *px = acc;
@@ -180,7 +183,7 @@ impl Camera {
 
     /// Construct a camera ray originating from the defocus disk and directed at a randomly
     /// sampled point around the pixel location i, j.
-    fn get_ray(&self, i: f32, j: f32, rng: &mut Rng) -> Ray {
+    fn get_ray(&self, i: f32, j: f32, r: &mut Ray, rng: &mut Rng) {
         // Vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square
         let offset = V3::new(
             rng.random_range(-0.5..0.5),
@@ -197,7 +200,7 @@ impl Camera {
             self.defocus_disk_sample(rng)
         };
 
-        Ray::new(ray_origin, sample - ray_origin)
+        r.set(ray_origin, sample - ray_origin);
     }
 
     // Returns a random point in the camera defocus disk.
@@ -207,13 +210,13 @@ impl Camera {
         self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
     }
 
-    fn ray_color(&self, mut r: Ray, bvh: &Bvh, rng: &mut Rng) -> Color {
+    fn ray_color(&self, r_in: &mut Ray, r_out: &mut Ray, bvh: &Bvh, rng: &mut Rng) -> Color {
         let mut incoming_light = color::BLACK;
         let mut rcolor = color::WHITE;
         let mut stack = [0; MAX_BVH_DEPTH];
 
         for _ in 0..self.max_bounces {
-            let hr = match bvh.hits(&r, Interval::new(0.001, f32::INFINITY), &mut stack) {
+            let hr = match bvh.hits(r_in, Interval::new(0.001, f32::INFINITY), &mut stack) {
                 Some(hr) => hr,
                 None => return rcolor * self.bg,
             };
@@ -221,10 +224,10 @@ impl Camera {
             let emitted_light = hr.mat.color_emitted(hr.u, hr.v, hr.p);
             incoming_light += emitted_light * rcolor;
 
-            match hr.mat.scatter(&r, &hr, rng) {
-                Some((scattered, attenuation)) => {
+            match hr.mat.scatter(r_in, r_out, &hr, rng) {
+                Some(attenuation) => {
                     rcolor *= attenuation;
-                    r = scattered;
+                    mem::swap(r_in, r_out);
                 }
                 None => break,
             };
@@ -238,7 +241,7 @@ impl Camera {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct Ray {
     pub orig: P3,
     pub dir: V3,
@@ -257,6 +260,13 @@ impl Ray {
             inv_dir,
             ro,
         }
+    }
+
+    pub fn set(&mut self, orig: P3, dir: V3) {
+        self.orig = orig;
+        self.dir = dir;
+        self.ro = wide::f32x4::new([orig.x, orig.y, orig.z, 0.0]);
+        self.inv_dir = wide::f32x4::new([1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z, 0.0]);
     }
 
     pub fn at(&self, t: f32) -> P3 {

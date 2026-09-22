@@ -153,20 +153,35 @@ impl Material {
         Self::Isotropic { texture }
     }
 
-    pub fn scatter(&self, r_in: &Ray, hr: &HitRecord, rng: &mut Rng) -> Option<(Ray, Color)> {
+    pub fn scatter(
+        &self,
+        r_in: &Ray,
+        r_out: &mut Ray,
+        hr: &HitRecord,
+        rng: &mut Rng,
+    ) -> Option<Color> {
         match self {
-            Self::Lambertian { texture } => lambertian_scatter(texture, hr, rng),
+            Self::Lambertian { texture } => lambertian_scatter(texture, r_out, hr, rng),
             Self::Specular {
                 albedo,
                 spec_albedo,
                 smoothness,
                 prob,
-            } => specular_scatter(albedo, spec_albedo, *smoothness, *prob, r_in, hr, rng),
-            Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, hr, rng),
+            } => specular_scatter(
+                albedo,
+                spec_albedo,
+                *smoothness,
+                *prob,
+                r_in,
+                r_out,
+                hr,
+                rng,
+            ),
+            Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, r_out, hr, rng),
             Self::Dielectric { ref_index, albedo } => {
-                dielectric_scatter(*ref_index, albedo, r_in, hr, rng)
+                dielectric_scatter(*ref_index, albedo, r_in, r_out, hr, rng)
             }
-            Self::Isotropic { texture } => isotropic_scatter(texture, hr, rng),
+            Self::Isotropic { texture } => isotropic_scatter(texture, r_out, hr, rng),
             Self::DiffuseLight { .. } => None,
         }
     }
@@ -179,29 +194,35 @@ impl Material {
     }
 }
 
-fn lambertian_scatter(texture: &Texture, hr: &HitRecord, rng: &mut Rng) -> Option<(Ray, Color)> {
+fn lambertian_scatter(
+    texture: &Texture,
+    r_out: &mut Ray,
+    hr: &HitRecord,
+    rng: &mut Rng,
+) -> Option<Color> {
     let mut scatter_direction = hr.normal + v3::random_unit_vector(rng);
     if v3::near_zero(&scatter_direction) {
         scatter_direction = hr.normal;
     }
-    let scattered = Ray::new(hr.p, scatter_direction);
     let attenuation = texture.value(hr.u, hr.v, hr.p);
+    r_out.set(hr.p, scatter_direction);
 
-    Some((scattered, attenuation))
+    Some(attenuation)
 }
 
 fn metal_scatter(
     albedo: &Color,
     fuzz: f32,
     r_in: &Ray,
+    r_out: &mut Ray,
     hr: &HitRecord,
     rng: &mut Rng,
-) -> Option<(Ray, Color)> {
+) -> Option<Color> {
     let reflected = r_in.dir.reflect(hr.normal).normalize() + (fuzz * v3::random_unit_vector(rng));
-    let scattered = Ray::new(hr.p, reflected);
+    r_out.set(hr.p, reflected);
 
-    if scattered.dir.dot(hr.normal) > 0.0 {
-        Some((scattered, *albedo))
+    if r_out.dir.dot(hr.normal) > 0.0 {
+        Some(*albedo)
     } else {
         None
     }
@@ -213,9 +234,10 @@ fn specular_scatter(
     smoothness: f32,
     prob: f32,
     r_in: &Ray,
+    r_out: &mut Ray,
     hr: &HitRecord,
     rng: &mut Rng,
-) -> Option<(Ray, Color)> {
+) -> Option<Color> {
     let diffuse_dir = hr.normal + v3::random_unit_vector(rng);
     let is_specular = prob > rng.random_range(0.0..1.0);
     let (dir, color) = if is_specular {
@@ -225,16 +247,19 @@ fn specular_scatter(
         (diffuse_dir, *albedo)
     };
 
-    Some((Ray::new(hr.p, dir), color))
+    r_out.set(hr.p, dir);
+
+    Some(color)
 }
 
 fn dielectric_scatter(
     ref_index: f32,
     albedo: &Color,
     r_in: &Ray,
+    r_out: &mut Ray,
     hr: &HitRecord,
     rng: &mut Rng,
-) -> Option<(Ray, Color)> {
+) -> Option<Color> {
     let ri = if hr.front_face {
         1.0 / ref_index
     } else {
@@ -246,13 +271,15 @@ fn dielectric_scatter(
     let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
     let cannot_refract = ri * sin_theta > 1.0;
 
-    let direction = if cannot_refract || reflectance(cos_theta, ri) > rng.random_range(0.0..1.0) {
+    let dir = if cannot_refract || reflectance(cos_theta, ri) > rng.random_range(0.0..1.0) {
         unit_dir.reflect(hr.normal)
     } else {
         unit_dir.refract(hr.normal, ri)
     };
 
-    Some((Ray::new(hr.p, direction), *albedo))
+    r_out.set(hr.p, dir);
+
+    Some(*albedo)
 }
 
 /// Use Schlick's approximation for reflectance.
@@ -263,9 +290,14 @@ fn reflectance(cosine: f32, ref_index: f32) -> f32 {
     r0_sq + (1.0 - r0_sq) * (1.0 - cosine).powi(5)
 }
 
-fn isotropic_scatter(texture: &Texture, hr: &HitRecord, rng: &mut Rng) -> Option<(Ray, Color)> {
-    let scattered = Ray::new(hr.p, v3::random_unit_vector(rng));
+fn isotropic_scatter(
+    texture: &Texture,
+    r_out: &mut Ray,
+    hr: &HitRecord,
+    rng: &mut Rng,
+) -> Option<Color> {
+    r_out.set(hr.p, v3::random_unit_vector(rng));
     let attenuation = texture.value(hr.u, hr.v, hr.p);
 
-    Some((scattered, attenuation))
+    Some(attenuation)
 }
