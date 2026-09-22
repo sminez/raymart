@@ -303,10 +303,13 @@ impl Sphere {
         let p = r.at(root);
         let outward_normal = (p - self.center) * self.inv_radius;
 
-        let theta = (-outward_normal.y).acos();
-        let phi = (-outward_normal.z).atan2(outward_normal.x) + PI;
-        let u = phi * INV_2PI;
-        let v = theta * INV_PI;
+        let (u, v) = if self.mat.needs_uv_calc() {
+            let theta = (-outward_normal.y).acos();
+            let phi = (-outward_normal.z).atan2(outward_normal.x) + PI;
+            (phi * INV_2PI, theta * INV_PI)
+        } else {
+            (0.0, 0.0)
+        };
 
         Some(HitRecord::new(root, p, outward_normal, r, self.mat, u, v))
     }
