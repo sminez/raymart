@@ -3,12 +3,14 @@ use crate::{
     color,
     hit::Interval,
     sdl::MainThreadState,
-    v3, Backend, Color, P3, V3,
+    v3, Backend, Color, Rng, P3, V3,
 };
-use rand::random_range;
+use rand::{RngExt, SeedableRng};
 use rayon::prelude::*;
 use sdl2::{event::Event, keyboard::Keycode};
 use std::{cmp::max, fs, mem, time::Instant};
+
+const RAND_JITTER: usize = 1000;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Camera {
@@ -107,7 +109,7 @@ impl Camera {
 
         'iters: for i in 1..=self.iterations {
             let scale = 1.0 / (i * self.samples_pp) as f32;
-            self.render_pass(&bvh, &mut new_pixels);
+            self.render_pass(i as usize, &bvh, &mut new_pixels);
 
             let render_time = Instant::now().duration_since(start);
             eprintln!(
@@ -155,19 +157,20 @@ impl Camera {
         eprintln!("\nRender time: {}s", render_time.as_secs());
     }
 
-    pub fn render_pass(&self, bvh: &Bvh, pixels: &mut [Color]) {
+    pub fn render_pass(&self, i: usize, bvh: &Bvh, pixels: &mut [Color]) {
         pixels
             .par_chunks_mut(self.image_width as usize)
             .enumerate()
             .for_each(|(j, row)| {
                 let fj = j as f32;
+                let mut rng = Rng::seed_from_u64(((i * RAND_JITTER) + j) as u64);
 
                 for (i, px) in row.iter_mut().enumerate() {
                     let fi = i as f32;
                     let mut acc = Color::default();
 
                     for _ in 0..self.samples_pp {
-                        acc += self.ray_color(self.get_ray(fi, fj), bvh);
+                        acc += self.ray_color(self.get_ray(fi, fj, &mut rng), bvh, &mut rng);
                     }
 
                     *px = acc;
@@ -177,29 +180,34 @@ impl Camera {
 
     /// Construct a camera ray originating from the defocus disk and directed at a randomly
     /// sampled point around the pixel location i, j.
-    fn get_ray(&self, i: f32, j: f32) -> Ray {
+    fn get_ray(&self, i: f32, j: f32, rng: &mut Rng) -> Ray {
         // Vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square
-        let offset = V3::new(random_range(-0.5..0.5), random_range(-0.5..0.5), 0.0);
+        let offset = V3::new(
+            rng.random_range(-0.5..0.5),
+            rng.random_range(-0.5..0.5),
+            0.0,
+        );
         let sample = self.pixel_origin
             + ((i + offset.x) * self.pixel_delta_u)
             + ((j + offset.y) * self.pixel_delta_v);
+
         let ray_origin = if self.defocus_angle <= 0.0 {
             self.center
         } else {
-            self.defocus_disk_sample()
+            self.defocus_disk_sample(rng)
         };
 
         Ray::new(ray_origin, sample - ray_origin)
     }
 
     // Returns a random point in the camera defocus disk.
-    fn defocus_disk_sample(&self) -> P3 {
-        let p = v3::random_in_unit_disk();
+    fn defocus_disk_sample(&self, rng: &mut Rng) -> P3 {
+        let p = v3::random_in_unit_disk(rng);
 
         self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
     }
 
-    fn ray_color(&self, mut r: Ray, bvh: &Bvh) -> Color {
+    fn ray_color(&self, mut r: Ray, bvh: &Bvh, rng: &mut Rng) -> Color {
         let mut incoming_light = color::BLACK;
         let mut rcolor = color::WHITE;
         let mut stack = [0; MAX_BVH_DEPTH];
@@ -213,7 +221,7 @@ impl Camera {
             let emitted_light = hr.mat.color_emitted(hr.u, hr.v, hr.p);
             incoming_light += emitted_light * rcolor;
 
-            match hr.mat.scatter(&r, &hr) {
+            match hr.mat.scatter(&r, &hr, rng) {
                 Some((scattered, attenuation)) => {
                     rcolor *= attenuation;
                     r = scattered;

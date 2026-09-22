@@ -1,6 +1,6 @@
-use crate::{color, hit::Interval, noise::Perlin, v3, Color, HitRecord, Ray, P3};
+use crate::{color, hit::Interval, noise::Perlin, v3, Color, HitRecord, Ray, Rng, P3};
 use image::{open, RgbImage};
-use rand::random_range;
+use rand::RngExt;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Texture {
@@ -27,9 +27,9 @@ impl Texture {
         Self::Image { raw }
     }
 
-    pub fn noise(scale: f32) -> Texture {
+    pub fn noise(scale: f32, rng: &mut Rng) -> Texture {
         Self::Noise {
-            noise: Box::leak(Box::new(Perlin::new())),
+            noise: Box::leak(Box::new(Perlin::new(rng))),
             scale,
         }
     }
@@ -117,9 +117,9 @@ impl Material {
         }
     }
 
-    pub fn noise(scale: f32) -> Material {
+    pub fn noise(scale: f32, rng: &mut Rng) -> Material {
         Self::Lambertian {
-            texture: Texture::noise(scale),
+            texture: Texture::noise(scale, rng),
         }
     }
 
@@ -153,20 +153,20 @@ impl Material {
         Self::Isotropic { texture }
     }
 
-    pub fn scatter(&self, r_in: &Ray, hr: &HitRecord) -> Option<(Ray, Color)> {
+    pub fn scatter(&self, r_in: &Ray, hr: &HitRecord, rng: &mut Rng) -> Option<(Ray, Color)> {
         match self {
-            Self::Lambertian { texture } => lambertian_scatter(texture, hr),
+            Self::Lambertian { texture } => lambertian_scatter(texture, hr, rng),
             Self::Specular {
                 albedo,
                 spec_albedo,
                 smoothness,
                 prob,
-            } => specular_scatter(albedo, spec_albedo, *smoothness, *prob, r_in, hr),
-            Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, hr),
+            } => specular_scatter(albedo, spec_albedo, *smoothness, *prob, r_in, hr, rng),
+            Self::Metal { albedo, fuzz } => metal_scatter(albedo, *fuzz, r_in, hr, rng),
             Self::Dielectric { ref_index, albedo } => {
-                dielectric_scatter(*ref_index, albedo, r_in, hr)
+                dielectric_scatter(*ref_index, albedo, r_in, hr, rng)
             }
-            Self::Isotropic { texture } => isotropic_scatter(texture, hr),
+            Self::Isotropic { texture } => isotropic_scatter(texture, hr, rng),
             Self::DiffuseLight { .. } => None,
         }
     }
@@ -179,8 +179,8 @@ impl Material {
     }
 }
 
-fn lambertian_scatter(texture: &Texture, hr: &HitRecord) -> Option<(Ray, Color)> {
-    let mut scatter_direction = hr.normal + v3::random_unit_vector();
+fn lambertian_scatter(texture: &Texture, hr: &HitRecord, rng: &mut Rng) -> Option<(Ray, Color)> {
+    let mut scatter_direction = hr.normal + v3::random_unit_vector(rng);
     if v3::near_zero(&scatter_direction) {
         scatter_direction = hr.normal;
     }
@@ -190,8 +190,14 @@ fn lambertian_scatter(texture: &Texture, hr: &HitRecord) -> Option<(Ray, Color)>
     Some((scattered, attenuation))
 }
 
-fn metal_scatter(albedo: &Color, fuzz: f32, r_in: &Ray, hr: &HitRecord) -> Option<(Ray, Color)> {
-    let reflected = r_in.dir.reflect(hr.normal).normalize() + (fuzz * v3::random_unit_vector());
+fn metal_scatter(
+    albedo: &Color,
+    fuzz: f32,
+    r_in: &Ray,
+    hr: &HitRecord,
+    rng: &mut Rng,
+) -> Option<(Ray, Color)> {
+    let reflected = r_in.dir.reflect(hr.normal).normalize() + (fuzz * v3::random_unit_vector(rng));
     let scattered = Ray::new(hr.p, reflected);
 
     if scattered.dir.dot(hr.normal) > 0.0 {
@@ -208,9 +214,10 @@ fn specular_scatter(
     prob: f32,
     r_in: &Ray,
     hr: &HitRecord,
+    rng: &mut Rng,
 ) -> Option<(Ray, Color)> {
-    let diffuse_dir = hr.normal + v3::random_unit_vector();
-    let is_specular = prob > random_range(0.0..1.0);
+    let diffuse_dir = hr.normal + v3::random_unit_vector(rng);
+    let is_specular = prob > rng.random_range(0.0..1.0);
     let (dir, color) = if is_specular {
         let specular_dir = r_in.dir.reflect(hr.normal);
         (diffuse_dir.lerp(specular_dir, smoothness), *spec_albedo)
@@ -226,6 +233,7 @@ fn dielectric_scatter(
     albedo: &Color,
     r_in: &Ray,
     hr: &HitRecord,
+    rng: &mut Rng,
 ) -> Option<(Ray, Color)> {
     let ri = if hr.front_face {
         1.0 / ref_index
@@ -238,7 +246,7 @@ fn dielectric_scatter(
     let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
     let cannot_refract = ri * sin_theta > 1.0;
 
-    let direction = if cannot_refract || reflectance(cos_theta, ri) > random_range(0.0..1.0) {
+    let direction = if cannot_refract || reflectance(cos_theta, ri) > rng.random_range(0.0..1.0) {
         unit_dir.reflect(hr.normal)
     } else {
         unit_dir.refract(hr.normal, ri)
@@ -255,8 +263,8 @@ fn reflectance(cosine: f32, ref_index: f32) -> f32 {
     r0_sq + (1.0 - r0_sq) * (1.0 - cosine).powi(5)
 }
 
-fn isotropic_scatter(texture: &Texture, hr: &HitRecord) -> Option<(Ray, Color)> {
-    let scattered = Ray::new(hr.p, v3::random_unit_vector());
+fn isotropic_scatter(texture: &Texture, hr: &HitRecord, rng: &mut Rng) -> Option<(Ray, Color)> {
+    let scattered = Ray::new(hr.p, v3::random_unit_vector(rng));
     let attenuation = texture.value(hr.u, hr.v, hr.p);
 
     Some((scattered, attenuation))

@@ -7,9 +7,10 @@ use crate::{
     material::Material,
     p,
     ray::Camera,
-    v, Color, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, STEP_SIZE, V3,
+    v, Color, Rng, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, STEP_SIZE, V3,
 };
 use glam::Mat3;
+use rand::SeedableRng;
 use serde::Deserialize;
 use std::{collections::HashMap, fs};
 use tobj::{load_obj, GPU_LOAD_OPTIONS};
@@ -106,7 +107,7 @@ impl From<&MatSpec> for Material {
             ),
             MatSpec::Isotropic { color } => Material::isotropic(color.into()),
             MatSpec::Light { color } => Material::diffuse_light(color.into()),
-            MatSpec::Noise { scale } => Material::noise(*scale),
+            MatSpec::Noise { scale } => Material::noise(*scale, &mut Rng::seed_from_u64(0)),
             MatSpec::Image { path } => Material::image(path),
         }
     }

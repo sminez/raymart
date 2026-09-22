@@ -33,7 +33,7 @@ fn scene_render_pass(title: &str, scene: &str, group: &mut BenchmarkGroup<'_, Wa
 
     group.bench_function(title, |b| {
         b.iter(|| {
-            camera.render_pass(&bvh, &mut pixels);
+            camera.render_pass(1, &bvh, &mut pixels);
         })
     });
 }

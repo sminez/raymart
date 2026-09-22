@@ -1,5 +1,5 @@
-use crate::{v3, P3, V3};
-use rand::random_range;
+use crate::{v3, Rng, P3, V3};
+use rand::{random_range, SeedableRng};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Perlin<const N: usize = 256> {
@@ -11,19 +11,20 @@ pub struct Perlin<const N: usize = 256> {
 
 impl Default for Perlin {
     fn default() -> Self {
-        Self::new()
+        let mut rng = Rng::seed_from_u64(0);
+        Self::new(&mut rng)
     }
 }
 
 impl<const N: usize> Perlin<N> {
-    pub fn new() -> Self {
+    pub fn new(rng: &mut Rng) -> Self {
         let mut rand_vec = [V3::default(); N];
         let mut perm_x = [0; N];
         let mut perm_y = [0; N];
         let mut perm_z = [0; N];
 
         for i in 0..N {
-            rand_vec[i] = v3::random(-1.0, 1.0).normalize();
+            rand_vec[i] = v3::random(-1.0, 1.0, rng).normalize();
             for s in [&mut perm_x, &mut perm_y, &mut perm_z] {
                 s[i] = i;
             }

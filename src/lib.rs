@@ -1,3 +1,5 @@
+pub use rand_xoshiro::Xoshiro128Plus as Rng;
+
 pub mod bvh;
 pub mod color;
 pub mod hit;
