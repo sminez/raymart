@@ -138,7 +138,7 @@ impl HitRecord {
 
 #[derive(Debug, Clone)]
 pub enum Hittable {
-    // Primatives
+    // Primitives
     Empty,
     Sphere(Sphere),
     Quad(Quad),

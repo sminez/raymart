@@ -1,4 +1,4 @@
-# Scene configuraton
+# Scene configuration
 samples_per_pixel = 1000
 max_bounces = 50
 image_width = 800

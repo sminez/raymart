@@ -145,7 +145,7 @@ impl Camera {
             }
         }
 
-        eprintln!("writting ppm file");
+        eprintln!("writing ppm file");
         let s: String = pixels.iter().map(|c| color::ppm_string(*c)).collect();
         fs::write(
             "test.ppm",

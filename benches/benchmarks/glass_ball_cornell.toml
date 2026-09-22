@@ -1,4 +1,4 @@
-# Scene configuraton
+# Scene configuration
 samples_per_pixel = 10
 samples_step_size = 10
 max_bounces = 20

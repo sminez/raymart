@@ -1,4 +1,4 @@
-# Scene configuraton
+# Scene configuration
 samples_per_pixel = 10
 samples_step_size = 10
 max_bounces = 20
@@ -90,7 +90,7 @@ center = [0.0, -100.0, -1.0]
 r = 99.7
 material = "ground"
 
-# metalic shell
+# metallic shell
 [[objects]]
 kind = "sphere"
 center = [0.0, -100.0, -1.0]
