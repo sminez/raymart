@@ -391,6 +391,10 @@ impl Scene {
         Some(toml::from_str(&s).unwrap())
     }
 
+    pub fn try_from_str(content: &str) -> Option<Self> {
+        Some(toml::from_str(content).unwrap())
+    }
+
     pub fn load_scene(&self) -> (Vec<Hittable>, Camera) {
         let mut hittables = Vec::new();
         let materials: HashMap<String, &'static Material> = self

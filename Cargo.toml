@@ -13,6 +13,10 @@ panic = 'abort'
 incremental = false
 codegen-units = 1
 
+[[bench]]
+name = "bench_main"
+harness = false
+
 [dependencies]
 anyhow = "1.0.104"
 image = "0.25.5"
@@ -27,4 +31,5 @@ wide = "0.7.32"
 glam = "0.33.8"
 
 [dev-dependencies]
+criterion = { version = "0.8.2", features = ["html_reports"] }
 simple_test_case = "1"

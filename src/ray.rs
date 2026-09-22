@@ -8,7 +8,7 @@ use crate::{
 use rand::random_range;
 use rayon::prelude::*;
 use sdl2::{event::Event, keyboard::Keycode};
-use std::{cmp::max, fs, time::Instant};
+use std::{cmp::max, fs, mem, time::Instant};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Camera {
@@ -100,11 +100,14 @@ impl Camera {
 
     pub fn render_sdl(&self, bvh: Bvh, mts: &mut MainThreadState, backend: &mut Backend<'_>) {
         let start = Instant::now();
-        let mut pixels = Vec::new();
+        let w = self.image_width as usize;
+        let h = self.image_height as usize;
+        let mut pixels = vec![Color::default(); w * h];
+        let mut new_pixels = vec![Color::default(); w * h];
 
         'iters: for i in 1..=self.iterations {
             let scale = 1.0 / (i * self.samples_pp) as f32;
-            let new_pixels = self.render_pass(&bvh);
+            self.render_pass(&bvh, &mut new_pixels);
 
             let render_time = Instant::now().duration_since(start);
             eprintln!(
@@ -113,16 +116,16 @@ impl Camera {
                 render_time.as_secs()
             );
 
-            let scaled = new_pixels.into_par_iter().map(|p| p * scale).collect();
-            if pixels.is_empty() {
-                pixels = scaled;
+            new_pixels.par_iter_mut().for_each(|p| *p *= scale);
+
+            if i == 1 {
+                mem::swap(&mut pixels, &mut new_pixels);
             } else {
                 let k = (i - 1) as f32 / i as f32;
-                pixels = pixels
-                    .into_iter()
-                    .zip(scaled)
-                    .map(|(prev, p)| prev * k + p)
-                    .collect()
+                pixels
+                    .iter_mut()
+                    .zip(&new_pixels)
+                    .for_each(|(px, new_px)| *px = *px * k + new_px);
             }
 
             backend.render(&pixels).unwrap();
@@ -152,22 +155,24 @@ impl Camera {
         eprintln!("\nRender time: {}s", render_time.as_secs());
     }
 
-    fn render_pass(&self, bvh: &Bvh) -> Vec<Color> {
-        (0..self.image_height)
-            .into_par_iter()
-            .flat_map(move |j| {
-                (0..self.image_width).into_par_iter().map(move |i| {
-                    let (fi, fj) = (i as f32, j as f32);
-                    (0..self.samples_pp)
-                        .into_par_iter()
-                        .map(|_| self.ray_color(self.get_ray(fi, fj), bvh))
-                        .reduce(Color::default, |mut a, b| {
-                            a += b;
-                            a
-                        })
-                })
-            })
-            .collect()
+    pub fn render_pass(&self, bvh: &Bvh, pixels: &mut [Color]) {
+        pixels
+            .par_chunks_mut(self.image_width as usize)
+            .enumerate()
+            .for_each(|(j, row)| {
+                let fj = j as f32;
+
+                for (i, px) in row.iter_mut().enumerate() {
+                    let fi = i as f32;
+                    let mut acc = Color::default();
+
+                    for _ in 0..self.samples_pp {
+                        acc += self.ray_color(self.get_ray(fi, fj), bvh);
+                    }
+
+                    *px = acc;
+                }
+            });
     }
 
     /// Construct a camera ray originating from the defocus disk and directed at a randomly
