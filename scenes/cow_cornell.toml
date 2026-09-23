@@ -1,8 +1,8 @@
 # Scene configuration
 samples_per_pixel = 1000
 samples_step_size = 10
-max_bounces = 50
-image_width = 800
+max_bounces = 20
+image_width = 600
 bg = 0.0
 
 # Camera
@@ -18,9 +18,27 @@ point_radius = 0.005
 
 
 # Materials for meshes and objects
+[materials.shiny_white]
+kind = "metal"
+color = 0.73
+fuzz = 0.6
+
+[materials.dragon_red]
+kind = "solid"
+color = [0.6, 0.2, 0.1]
+
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
+color = [0.6, 0.2, 0.1]
+
+[materials.air]
+kind = "dielectric"
+ref_index = 0.769
+
 [materials.light]
 kind = "light"
-color = 25.0
+color = 10.0
 
 [materials.red]
 kind = "solid"
@@ -30,39 +48,34 @@ color = [0.65, 0.05, 0.05]
 kind = "solid"
 color = [0.12, 0.45, 0.15]
 
-[materials.blue]
-kind = "solid"
-color = [0.12, 0.25, 0.55]
-
-[materials.white]
-kind = "solid"
-color = 0.73
+# [materials.white]
+# kind = "solid"
+# color = 0.73
 
 # Use for the infinite mirror effect
-# [materials.white]
-# kind = "metal"
-# color = 0.93
-# fuzz = 0.0
+[materials.white]
+kind = "metal"
+color = 0.93
+fuzz = 0.0
+
+
+# .obj meshes (only vertices are used)
+[[meshes]]
+path = "assets/testing/cow.obj"
+material = "glass"
+scale = 0.4
+rotate = 55.0
+translate = [220.0, 20.0, 110.0]
+
+[[meshes]]
+path = "assets/testing/cow.obj"
+material = "air"
+scale = 0.38
+rotate = 55.0
+translate = [220.0, 20.0, 110.0]
 
 
 # Additional scene objects
-
-[[objects]]
-kind = "box"
-vert1 = [0.0, 0.0, 0.0]
-vert2 = [165.0, 165.0, 165.0]
-material = "white"
-rotate = -18.0
-translate = [130.0, 0.0, 65.0]
-
-[[objects]]
-kind = "box"
-vert1 = [0.0, 0.0, 0.0]
-vert2 = [165.0, 330.0, 165.0]
-material = "white"
-rotate = 15.0
-translate = [265.0, 0.0, 295.0]
-
 
 # Cornell Box
 
@@ -99,7 +112,7 @@ kind = "quad"
 q = [0.0, 0.0, 555.0]
 u = [555.0, 0.0, 0.0]
 v = [0.0, 555.0, 0.0]
-material = "blue"
+material = "white"
 
 [[objects]]
 kind = "quad"

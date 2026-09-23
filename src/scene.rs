@@ -50,6 +50,11 @@ pub enum MatSpec {
         smoothness: f32,
         spec_prob: f32,
     },
+    Checker {
+        scale: f32,
+        even: ColorSpec,
+        odd: ColorSpec,
+    },
     Metal {
         color: ColorSpec,
         fuzz: f32,
@@ -100,6 +105,9 @@ impl From<&MatSpec> for Material {
                 smoothness: *smoothness,
                 prob: *spec_prob,
             },
+            MatSpec::Checker { scale, odd, even } => {
+                Material::checker(*scale, odd.into(), even.into())
+            }
             MatSpec::Metal { color, fuzz } => Material::metal(color.into(), *fuzz),
             MatSpec::Dielectric { ref_index, color } => Material::dielectric(
                 *ref_index,

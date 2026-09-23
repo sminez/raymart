@@ -1,14 +1,14 @@
 # Scene configuration
-samples_per_pixel = 1000
+samples_per_pixel = 3000
 samples_step_size = 10
-max_bounces = 50
-image_width = 800
+max_bounces = 40
+image_width = 1200
 bg = 0.0
 
 # Camera
 fov = 40.0
 aspect_ratio = 1.0
-from = [278.0, 278.0, -760.0]
+from = [278.0, 278.0, -800.0]
 at = [278.0, 278.0, 0.0]
 v_up = [0.0, 1.0, 0.0]
 
@@ -38,12 +38,29 @@ color = [0.12, 0.25, 0.55]
 kind = "solid"
 color = 0.73
 
-# Use for the infinite mirror effect
-# [materials.white]
-# kind = "metal"
-# color = 0.93
-# fuzz = 0.0
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
 
+[materials.air]
+kind = "dielectric"
+ref_index = 0.769
+
+[materials.crystal]
+kind = "dielectric"
+ref_index = 3.0
+
+[materials.mirror]
+kind = "metal"
+color = 0.93
+fuzz = 0.4
+
+[materials.bronze]
+kind = "specular"
+color = [0.6, 0.2, 0.1]
+spec_color = [0.6, 0.8, 0.3]
+smoothness = 0.6
+spec_prob = 0.7
 
 # Additional scene objects
 
@@ -51,7 +68,7 @@ color = 0.73
 kind = "box"
 vert1 = [0.0, 0.0, 0.0]
 vert2 = [165.0, 165.0, 165.0]
-material = "white"
+material = "bronze"
 rotate = -18.0
 translate = [130.0, 0.0, 65.0]
 
@@ -59,10 +76,33 @@ translate = [130.0, 0.0, 65.0]
 kind = "box"
 vert1 = [0.0, 0.0, 0.0]
 vert2 = [165.0, 330.0, 165.0]
-material = "white"
+material = "crystal"
 rotate = 15.0
 translate = [265.0, 0.0, 295.0]
 
+[[objects]]
+kind = "sphere"
+center = [175.0, 225.0, 150.0]
+r = 60
+material = "glass"
+
+[[objects]]
+kind = "sphere"
+center = [175.0, 225.0, 150.0]
+r = 55
+material = "air"
+
+[[objects]]
+kind = "sphere"
+center = [425.0, 75.0, 150.0]
+r = 30
+material = "crystal"
+
+[[objects]]
+kind = "sphere"
+center = [315.0, 30.0, 190.0]
+r = 30
+material = "mirror"
 
 # Cornell Box
 

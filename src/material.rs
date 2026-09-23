@@ -7,6 +7,11 @@ pub enum Texture {
     SolidColor {
         albedo: Color,
     },
+    Checker {
+        inv_scale: f32,
+        odd: &'static Texture,
+        even: &'static Texture,
+    },
     Image {
         raw: &'static RgbImage,
     },
@@ -19,6 +24,14 @@ pub enum Texture {
 impl Texture {
     pub fn solid(albedo: Color) -> Texture {
         Self::SolidColor { albedo }
+    }
+
+    pub fn checker(scale: f32, odd: Texture, even: Texture) -> Texture {
+        Self::Checker {
+            inv_scale: 1.0 / scale,
+            odd: Box::leak(Box::new(odd)),
+            even: Box::leak(Box::new(even)),
+        }
     }
 
     pub fn image(path: &str) -> Texture {
@@ -37,9 +50,26 @@ impl Texture {
     pub fn value(&self, u: f32, v: f32, p: P3) -> Color {
         match self {
             Self::SolidColor { albedo } => *albedo,
+            Self::Checker {
+                inv_scale,
+                odd,
+                even,
+            } => checker_value(u, v, p, *inv_scale, odd, even),
             Self::Image { raw } => image_value(u, v, p, raw),
             Self::Noise { noise, scale } => noise_value(p, noise, *scale),
         }
+    }
+}
+
+fn checker_value(u: f32, v: f32, p: P3, inv_scale: f32, odd: &Texture, even: &Texture) -> Color {
+    let x = (inv_scale * p.x).floor() as i64;
+    let y = (inv_scale * p.y).floor() as i64;
+    let z = (inv_scale * p.z).floor() as i64;
+
+    if (x + y + z) % 2 == 0 {
+        even.value(u, v, p)
+    } else {
+        odd.value(u, v, p)
     }
 }
 
@@ -96,11 +126,11 @@ impl Material {
         matches!(
             self,
             Self::DiffuseLight {
-                texture: Texture::Image { .. },
+                texture: Texture::Image { .. } | Texture::Checker { .. },
             } | Self::Isotropic {
-                texture: Texture::Image { .. },
+                texture: Texture::Image { .. } | Texture::Checker { .. },
             } | Self::Lambertian {
-                texture: Texture::Image { .. },
+                texture: Texture::Image { .. } | Texture::Checker { .. },
             }
         )
     }
@@ -108,6 +138,12 @@ impl Material {
     pub fn solid_color(albedo: Color) -> Material {
         Self::Lambertian {
             texture: Texture::solid(albedo),
+        }
+    }
+
+    pub fn checker(scale: f32, odd: Color, even: Color) -> Material {
+        Self::Lambertian {
+            texture: Texture::checker(scale, Texture::solid(odd), Texture::solid(even)),
         }
     }
 
@@ -228,6 +264,7 @@ fn metal_scatter(
     }
 }
 
+#[expect(clippy::too_many_arguments)]
 fn specular_scatter(
     albedo: &Color,
     spec_albedo: &Color,
