@@ -8,6 +8,7 @@ pub mod noise;
 pub mod ray;
 pub mod scene;
 pub mod sdl;
+pub mod shapes;
 pub mod v3;
 
 pub use bvh::Bvh;

@@ -31,7 +31,7 @@ impl<const N: usize> Perlin<N> {
         }
 
         for s in [&mut perm_x, &mut perm_y, &mut perm_z] {
-            for i in (1..N).rev() {
+            for i in (N - 1)..0 {
                 let target = random_range(0..i);
                 s.swap(i, target);
             }

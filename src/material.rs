@@ -18,6 +18,7 @@ pub enum Texture {
     Noise {
         noise: &'static Perlin<256>,
         scale: f32,
+        albedo: Color,
     },
 }
 
@@ -40,10 +41,11 @@ impl Texture {
         Self::Image { raw }
     }
 
-    pub fn noise(scale: f32, rng: &mut Rng) -> Texture {
+    pub fn noise(scale: f32, albedo: Color, rng: &mut Rng) -> Texture {
         Self::Noise {
             noise: Box::leak(Box::new(Perlin::new(rng))),
             scale,
+            albedo,
         }
     }
 
@@ -56,7 +58,11 @@ impl Texture {
                 even,
             } => checker_value(u, v, p, *inv_scale, odd, even),
             Self::Image { raw } => image_value(u, v, p, raw),
-            Self::Noise { noise, scale } => noise_value(p, noise, *scale),
+            Self::Noise {
+                noise,
+                scale,
+                albedo,
+            } => noise_value(p, noise, *scale, *albedo),
         }
     }
 }
@@ -90,8 +96,8 @@ fn image_value(mut u: f32, mut v: f32, _p: P3, raw: &RgbImage) -> Color {
     )
 }
 
-fn noise_value(p: P3, noise: &Perlin<256>, scale: f32) -> Color {
-    Color::splat(0.5) * (1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
+fn noise_value(p: P3, noise: &Perlin<256>, scale: f32, albedo: Color) -> Color {
+    albedo * (1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -153,9 +159,9 @@ impl Material {
         }
     }
 
-    pub fn noise(scale: f32, rng: &mut Rng) -> Material {
+    pub fn noise(scale: f32, albedo: Color, rng: &mut Rng) -> Material {
         Self::Lambertian {
-            texture: Texture::noise(scale, rng),
+            texture: Texture::noise(scale, albedo, rng),
         }
     }
 

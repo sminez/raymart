@@ -3,10 +3,11 @@
 //!   https://en.wikipedia.org/wiki/Wavefront_.obj_file
 use crate::{
     bvh::Bvh,
-    hit::{cuboid, ConstantMedium, Hittable, Quad, Sphere, Triangle},
-    material::Material,
+    hit::{transforms::ConstantMedium, Hittable},
+    material::{Material, Texture},
     p,
     ray::Camera,
+    shapes::{cuboid, Quad, Sphere, Triangle},
     v, Color, Rng, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, STEP_SIZE, V3,
 };
 use glam::Mat3;
@@ -39,7 +40,7 @@ impl From<&ColorSpec> for Color {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "lowercase", tag = "kind")]
+#[serde(rename_all = "snake_case", tag = "kind")]
 pub enum MatSpec {
     Solid {
         color: ColorSpec,
@@ -72,6 +73,12 @@ pub enum MatSpec {
     },
     Noise {
         scale: f32,
+        #[serde(default)]
+        color: Option<ColorSpec>,
+    },
+    NoiseLight {
+        scale: f32,
+        color: ColorSpec,
     },
     Image {
         path: String,
@@ -115,7 +122,14 @@ impl From<&MatSpec> for Material {
             ),
             MatSpec::Isotropic { color } => Material::isotropic(color.into()),
             MatSpec::Light { color } => Material::diffuse_light(color.into()),
-            MatSpec::Noise { scale } => Material::noise(*scale, &mut Rng::seed_from_u64(0)),
+            MatSpec::Noise { scale, color } => Material::noise(
+                *scale,
+                color.as_ref().unwrap_or(&ColorSpec::Grey(0.5)).into(),
+                &mut Rng::seed_from_u64(0),
+            ),
+            MatSpec::NoiseLight { scale, color } => Material::diffuse_light_texture(
+                Texture::noise(*scale, color.into(), &mut Rng::seed_from_u64(0)),
+            ),
             MatSpec::Image { path } => Material::image(path),
         }
     }
