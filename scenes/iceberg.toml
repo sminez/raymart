@@ -1,8 +1,8 @@
 # Scene configuration
-samples_per_pixel = 2000
+samples_per_pixel = 2500
 samples_step_size = 10
-max_bounces = 10
-image_width = 1200
+max_bounces = 5
+image_width = 1500
 bg = 0.0
 
 # Camera
@@ -18,6 +18,11 @@ point_radius = 0.005
 
 
 # Materials for meshes and objects
+[materials.ground]
+kind = "noise"
+color = [0.2, 0.6, 0.8]
+scale = 20.0
+
 [materials.jade]
 kind = "metal"
 color = [0.2, 0.6, 0.8]
@@ -50,7 +55,7 @@ ref_index = 3.0
 kind = "sphere"
 center = [0.0, -100.5, -1.0]
 r = 100.0
-material = "jade"
+material = "ground"
 
 [[objects]]
 kind = "sphere"

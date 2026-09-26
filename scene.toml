@@ -1,15 +1,15 @@
 # Scene configuration
-samples_per_pixel = 3000
+samples_per_pixel = 2500
 samples_step_size = 10
-max_bounces = 30
-image_width = 1800
+max_bounces = 5
+image_width = 1500
 bg = 0.0
 
 # Camera
-fov = 40.0
+fov = 6.0
 aspect_ratio = 1.0
-from = [278.0, 278.0, -800.0]
-at = [278.0, 278.0, 0.0]
+from = [0.0, 1.0, 11.0]
+at = [0.0, 0.0, 0.0]
 v_up = [0.0, 1.0, 0.0]
 
 # Debug point view
@@ -18,97 +18,78 @@ point_radius = 0.005
 
 
 # Materials for meshes and objects
+[materials.ground]
+kind = "noise"
+color = [0.2, 0.6, 0.8]
+scale = 20.0
+
+[materials.jade]
+kind = "metal"
+color = [0.2, 0.6, 0.8]
+fuzz = 0.1
+
+[materials.white]
+kind = "specular"
+color = [0.7, 0.55, 0.4]
+spec_color = 0.5
+smoothness = 0.2
+spec_prob = 0.1
+
 [materials.light]
 kind = "light"
-color = 25.0
+color = [15.0, 13.0, 11.0]
 
-[materials.red]
-kind = "solid"
-color = [0.65, 0.05, 0.05]
+[materials.dim_light]
+kind = "light"
+color = [0.3, 0.2, 0.1]
 
-[materials.green]
-kind = "solid"
-color = [0.12, 0.45, 0.15]
-
-# [materials.white]
-# kind = "solid"
-# color = 0.73
-
-# Use for the infinite mirror effect
-[materials.white]
-kind = "metal"
-color = 0.93
-fuzz = 0.0
-
-[materials.glass]
+[materials.crystal]
 kind = "dielectric"
-ref_index = 1.33
+ref_index = 3.0
 
-[materials.air]
-kind = "dielectric"
-ref_index = 0.769
 
 # Additional scene objects
 
+# ground
 [[objects]]
 kind = "sphere"
-center = [343.0, 250.0, 342.0]
-r = 150.0
-material = "glass"
-
-[[objects]]
-kind = "sphere"
-center = [343.0, 250.0, 342.0]
-r = 120.0
-material = "air"
-
-[[objects]]
-kind = "sphere"
-center = [343.0, 250.0, 342.0]
+center = [0.0, -100.5, -1.0]
 r = 100.0
-material = "glass"
-
-
-# Cornell Box
+material = "ground"
 
 [[objects]]
-kind = "quad"
-q = [343.0, 554.0, 332.0]
-u = [-130.0, 0.0, 0.0]
-v = [0.0, 0.0, -105.0]
+kind = "sphere"
+center = [0.0, -100.5, -1.0]
+r = 100.1
+material = "crystal"
+
+[[objects]]
+kind = "sphere"
+center = [0.0, -100.5, -1.0]
+r = 130.0
+material = "jade"
+
+# lights
+
+[[objects]]
+kind = "sphere"
+center = [0.0, -100.5, -11.0]
+r = 90.5
+material = "dim_light"
+
+[[objects]]
+kind = "sphere"
+center = [-2.0, 2.0, 1.2]
+r = 0.9
 material = "light"
 
-[[objects]]
-kind = "quad"
-q = [555.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
-material = "green"
+# spheres
 
 [[objects]]
-kind = "quad"
-q = [0.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
-material = "red"
-
-[[objects]]
-kind = "quad"
-q = [0.0, 0.0, 0.0]
-u = [555.0, 0.0, 0.0]
-v = [0.0, 0.0, 555.0]
-material = "white"
-
-[[objects]]
-kind = "quad"
-q = [0.0, 0.0, 555.0]
-u = [555.0, 0.0, 0.0]
-v = [0.0, 555.0, 0.0]
-material = "white"
-
-[[objects]]
-kind = "quad"
-q = [555.0, 555.0, 555.0]
-u = [-555.0, 0.0, 0.0]
-v = [0.0, 0.0, -555.0]
+kind = "noise_sphere"
+center = [0.0, 0.0, 0.0]
+r = 0.5
+subdivisions = 7
+frac_inv = 2.0
+noise_depth = 7
 material = "white"
