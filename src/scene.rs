@@ -275,6 +275,14 @@ pub enum HittableSpec {
         subdivisions: usize,
         material: String,
     },
+    NoiseSphere {
+        center: [f32; 3],
+        r: f32,
+        subdivisions: usize,
+        frac_inv: f32,
+        noise_depth: usize,
+        material: String,
+    },
     Box {
         vert1: [f32; 3],
         vert2: [f32; 3],
@@ -300,6 +308,7 @@ impl HittableSpec {
             Self::Sphere { material, .. } => mats.get(material).unwrap(),
             Self::UvSphere { material, .. } => mats.get(material).unwrap(),
             Self::IcoSphere { material, .. } => mats.get(material).unwrap(),
+            Self::NoiseSphere { material, .. } => mats.get(material).unwrap(),
             Self::Box { material, .. } => mats.get(material).unwrap(),
             Self::Quad { material, .. } => mats.get(material).unwrap(),
             Self::Triangle { material, .. } => mats.get(material).unwrap(),
@@ -337,6 +346,23 @@ impl HittableSpec {
                 material,
             } => SphereMesh::icosphere((*center).into(), *r, *subdivisions, mat(material))
                 .into_mesh(),
+
+            Self::NoiseSphere {
+                center,
+                r,
+                subdivisions,
+                frac_inv,
+                noise_depth,
+                material,
+            } => SphereMesh::noise_sphere(
+                (*center).into(),
+                *r,
+                *subdivisions,
+                *frac_inv,
+                *noise_depth,
+                mat(material),
+            )
+            .into_mesh(),
 
             Self::Box {
                 vert1,

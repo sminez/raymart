@@ -1,4 +1,4 @@
-use crate::{bvh::Bvh, hit::Hittable, material::Material, shapes::Triangle, P3, V3};
+use crate::{bvh::Bvh, hit::Hittable, material::Material, noise::Perlin, shapes::Triangle, P3, V3};
 use std::{collections::HashMap, f32::consts::PI, mem};
 
 #[derive(Debug, Clone)]
@@ -141,6 +141,21 @@ impl SphereMesh {
 
         Self::new(center, radius, mesh.directions, mesh.triangles, mat)
     }
+
+    pub fn noise_sphere(
+        center: P3,
+        radius: f32,
+        subdivisions: usize,
+        frac_inv: f32,
+        noise_depth: usize,
+        mat: &'static Material,
+    ) -> Self {
+        let mut mesh = TriangleMesh::unit_icosahedron();
+        mesh.subdivide(subdivisions);
+        mesh.apply_noise(frac_inv, noise_depth, &Perlin::new_from_thread_rng());
+
+        Self::new(center, radius, mesh.directions, mesh.triangles, mat)
+    }
 }
 
 struct TriangleMesh {
@@ -239,6 +254,25 @@ impl TriangleMesh {
 
         self.directions = dirs;
         self.triangles = triangles;
+    }
+
+    fn apply_noise(&mut self, frac_inv: f32, depth: usize, noise: &Perlin<256>) {
+        let weights: Vec<f32> = self
+            .directions
+            .iter()
+            .map(|dir| noise.turb(*dir, depth))
+            .collect();
+
+        let mut max = weights
+            .iter()
+            .fold(0.0, |acc, &val| if val > acc { val } else { acc });
+
+        let base = 1.0 - (1.0 / frac_inv);
+        max *= frac_inv;
+
+        for (d, w) in self.directions.iter_mut().zip(weights) {
+            *d *= base + w / max;
+        }
     }
 }
 

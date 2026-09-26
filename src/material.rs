@@ -62,7 +62,7 @@ impl Texture {
                 noise,
                 scale,
                 albedo,
-            } => noise_value(p, noise, *scale, *albedo),
+            } => noise.noise_value(p, *scale, *albedo),
         }
     }
 }
@@ -94,10 +94,6 @@ fn image_value(mut u: f32, mut v: f32, _p: P3, raw: &RgbImage) -> Color {
         scale * px.0[1] as f32,
         scale * px.0[2] as f32,
     )
-}
-
-fn noise_value(p: P3, noise: &Perlin<256>, scale: f32, albedo: Color) -> Color {
-    albedo * (1.0 + (scale * p.z + 10.0 * noise.turb(p, 7)).sin())
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -1,5 +1,5 @@
-use crate::{v3, Rng, P3, V3};
-use rand::{random_range, SeedableRng};
+use crate::{v3, Color, Rng, P3, V3};
+use rand::{random_range, rngs::ThreadRng, SeedableRng};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Perlin<const N: usize = 256> {
@@ -17,6 +17,10 @@ impl Default for Perlin {
 }
 
 impl<const N: usize> Perlin<N> {
+    pub fn new_from_thread_rng() -> Self {
+        Self::new(&mut Rng::from_rng(&mut ThreadRng::default()))
+    }
+
     pub fn new(rng: &mut Rng) -> Self {
         let mut rand_vec = [V3::default(); N];
         let mut perm_x = [0; N];
@@ -103,5 +107,9 @@ impl<const N: usize> Perlin<N> {
         }
 
         acc.abs()
+    }
+
+    pub fn noise_value(&self, p: P3, scale: f32, albedo: Color) -> Color {
+        albedo * (1.0 + (scale * p.z + 10.0 * self.turb(p, 7)).sin())
     }
 }
