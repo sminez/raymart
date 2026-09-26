@@ -1,7 +1,7 @@
 # Scene configuration
-samples_per_pixel = 30
+samples_per_pixel = 3000
 samples_step_size = 10
-max_bounces = 40
+max_bounces = 20
 image_width = 1200
 bg = 0.0
 
@@ -65,6 +65,18 @@ spec_prob = 0.7
 # Additional scene objects
 
 [[objects]]
+kind = "sphere"
+center = [278.0, 278.0, 0.0]
+r = 340
+material = "air"
+
+[[objects]]
+kind = "sphere"
+center = [278.0, 278.0, 0.0]
+r = 420
+material = "glass"
+
+[[objects]]
 kind = "box"
 vert1 = [0.0, 0.0, 0.0]
 vert2 = [165.0, 165.0, 165.0]
@@ -94,21 +106,22 @@ material = "air"
 
 [[objects]]
 kind = "sphere"
-center = [425.0, 75.0, 150.0]
+center = [425.0, 95.0, 150.0]
 r = 30
 material = "crystal"
 
 [[objects]]
 kind = "sphere"
-center = [315.0, 30.0, 190.0]
-r = 30
+center = [115.0, 380.0, 350.0]
+r = 43
 material = "mirror"
 
 [[objects]]
 kind = "sphere"
 center = [405.0, 390.0, 320.0]
 r = 23
-material = "white"
+material = "bronze"
+
 
 # Cornell Box
 

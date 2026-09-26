@@ -1,0 +1,127 @@
+# Scene configuration
+samples_per_pixel = 500
+samples_step_size = 10
+max_bounces = 10
+image_width = 1200
+bg = 0.0
+
+# Camera
+fov = 10.0
+aspect_ratio = 1.6
+from = [0.0, 1.0, 11.0]
+at = [0.0, 0.0, 0.0]
+v_up = [0.0, 1.0, 0.0]
+
+# Debug point view
+as_points = false
+point_radius = 0.005
+
+
+# Materials for meshes and objects
+[materials.ground]
+kind = "checker"
+scale = 0.32
+even = [0.1, 0.2, 0.07]
+odd = 0.9
+
+[materials.jade]
+kind = "metal"
+color = [0.2, 0.6, 0.8]
+fuzz = 0.1
+
+[materials.red]
+kind = "specular"
+color = [0.95, 0.15, 0.25]
+spec_color = 0.3
+smoothness = 0.4
+spec_prob = 0.1
+
+[materials.green]
+kind = "specular"
+color = [0.12, 0.45, 0.15]
+spec_color = 0.3
+smoothness = 0.4
+spec_prob = 0.1
+
+[materials.blue]
+kind = "specular"
+color = [0.12, 0.25, 0.55]
+spec_color = 0.3
+smoothness = 0.4
+spec_prob = 0.1
+
+[materials.light]
+kind = "light"
+color = 10.0
+
+[materials.dim_light]
+kind = "light"
+color = 0.2
+
+[materials.glass]
+kind = "dielectric"
+ref_index = 1.33
+
+[materials.air]
+kind = "dielectric"
+ref_index = 0.769
+
+[materials.crystal]
+kind = "dielectric"
+ref_index = 3.0
+
+
+# Additional scene objects
+
+# ground
+[[objects]]
+kind = "sphere"
+center = [0.0, -100.5, -1.0]
+r = 100.0
+material = "jade"
+
+[[objects]]
+kind = "sphere"
+center = [0.0, -100.5, -1.0]
+r = 130.0
+material = "jade"
+
+# lights
+
+[[objects]]
+kind = "sphere"
+center = [0.0, -100.5, -11.0]
+r = 90.5
+material = "dim_light"
+
+[[objects]]
+kind = "sphere"
+center = [-2.0, 2.0, 1.2]
+r = 0.9
+material = "light"
+
+# spheres
+
+# left
+[[objects]]
+kind = "ico_sphere"
+center = [-1.0, 0.0, 0.0]
+r = 0.48
+subdivisions = 1
+material = "red"
+
+# center
+[[objects]]
+kind = "sphere"
+center = [0.0, 0.0, -1.0]
+r = 0.48
+material = "green"
+
+# right
+[[objects]]
+kind = "uv_sphere"
+center = [1.0, 0.0, 0.0]
+r = 0.48
+n_lat = 7
+n_lon = 6
+material = "blue"

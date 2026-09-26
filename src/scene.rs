@@ -7,7 +7,7 @@ use crate::{
     material::{Material, Texture},
     p,
     ray::Camera,
-    shapes::{cuboid, Quad, Sphere, Triangle},
+    shapes::{cuboid, Quad, Sphere, SphereMesh, Triangle},
     v, Color, Rng, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, STEP_SIZE, V3,
 };
 use glam::Mat3;
@@ -255,11 +255,24 @@ impl ObjSpec {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "lowercase", tag = "kind")]
+#[serde(rename_all = "snake_case", tag = "kind")]
 pub enum HittableSpec {
     Sphere {
         center: [f32; 3],
         r: f32,
+        material: String,
+    },
+    UvSphere {
+        center: [f32; 3],
+        r: f32,
+        n_lat: usize,
+        n_lon: usize,
+        material: String,
+    },
+    IcoSphere {
+        center: [f32; 3],
+        r: f32,
+        subdivisions: usize,
         material: String,
     },
     Box {
@@ -285,6 +298,8 @@ impl HittableSpec {
     fn color(&self, mats: &HashMap<String, MatSpec>) -> Color {
         let mat = match self {
             Self::Sphere { material, .. } => mats.get(material).unwrap(),
+            Self::UvSphere { material, .. } => mats.get(material).unwrap(),
+            Self::IcoSphere { material, .. } => mats.get(material).unwrap(),
             Self::Box { material, .. } => mats.get(material).unwrap(),
             Self::Quad { material, .. } => mats.get(material).unwrap(),
             Self::Triangle { material, .. } => mats.get(material).unwrap(),
@@ -305,6 +320,23 @@ impl HittableSpec {
                 r,
                 material,
             } => Sphere::new((*center).into(), *r, mat(material)).into(),
+
+            Self::UvSphere {
+                center,
+                r,
+                n_lat,
+                n_lon,
+                material,
+            } => SphereMesh::uv_sphere((*center).into(), *r, *n_lat, *n_lon, mat(material))
+                .into_mesh(),
+
+            Self::IcoSphere {
+                center,
+                r,
+                subdivisions,
+                material,
+            } => SphereMesh::icosphere((*center).into(), *r, *subdivisions, mat(material))
+                .into_mesh(),
 
             Self::Box {
                 vert1,

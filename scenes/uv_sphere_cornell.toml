@@ -1,8 +1,8 @@
 # Scene configuration
-samples_per_pixel = 30
+samples_per_pixel = 300
 samples_step_size = 10
-max_bounces = 40
-image_width = 1200
+max_bounces = 10
+image_width = 1000
 bg = 0.0
 
 # Camera
@@ -38,6 +38,12 @@ color = [0.12, 0.25, 0.55]
 kind = "solid"
 color = 0.73
 
+# Use for the infinite mirror effect
+# [materials.white]
+# kind = "metal"
+# color = 0.93
+# fuzz = 0.0
+
 [materials.glass]
 kind = "dielectric"
 ref_index = 1.33
@@ -50,65 +56,32 @@ ref_index = 0.769
 kind = "dielectric"
 ref_index = 3.0
 
-[materials.mirror]
-kind = "metal"
-color = 0.93
-fuzz = 0.4
-
-[materials.bronze]
-kind = "specular"
-color = [0.6, 0.2, 0.1]
-spec_color = [0.6, 0.8, 0.3]
-smoothness = 0.6
-spec_prob = 0.7
-
 # Additional scene objects
 
 [[objects]]
-kind = "box"
-vert1 = [0.0, 0.0, 0.0]
-vert2 = [165.0, 165.0, 165.0]
-material = "bronze"
-rotate = -18.0
-translate = [130.0, 0.0, 65.0]
-
-[[objects]]
-kind = "box"
-vert1 = [0.0, 0.0, 0.0]
-vert2 = [165.0, 330.0, 165.0]
-material = "crystal"
-rotate = 15.0
-translate = [265.0, 0.0, 295.0]
-
-[[objects]]
-kind = "sphere"
-center = [175.0, 225.0, 150.0]
-r = 60
-material = "glass"
-
-[[objects]]
-kind = "sphere"
-center = [175.0, 225.0, 150.0]
-r = 55
-material = "air"
-
-[[objects]]
-kind = "sphere"
-center = [425.0, 75.0, 150.0]
-r = 30
+kind = "uv_sphere"
+center = [343.0, 250.0, 342.0]
+r = 150.0
+n_lat = 6
+n_lon = 6
 material = "crystal"
 
-[[objects]]
-kind = "sphere"
-center = [315.0, 30.0, 190.0]
-r = 30
-material = "mirror"
+# [[objects]]
+# kind = "uv_sphere"
+# center = [343.0, 250.0, 342.0]
+# r = 120.0
+# n_lat = 6
+# n_lon = 6
+# material = "air"
 
-[[objects]]
-kind = "sphere"
-center = [405.0, 390.0, 320.0]
-r = 23
-material = "white"
+# [[objects]]
+# kind = "uv_sphere"
+# center = [343.0, 250.0, 342.0]
+# r = 100.0
+# n_lat = 4
+# n_lon = 5
+# material = "glass"
+
 
 # Cornell Box
 
