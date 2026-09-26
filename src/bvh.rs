@@ -282,15 +282,14 @@ impl Bvh {
         &self,
         r: &Ray,
         mut ray_t: Interval,
-        stack: &mut [usize; MAX_BVH_DEPTH],
+        stack: &mut [(usize, f32); MAX_BVH_DEPTH],
     ) -> Option<HitRecord> {
         let mut hr = None;
-        let mut i = 1;
-        stack[0] = 0;
+        let mut stack_len = 0;
+        let mut node_idx = 0;
 
-        while i > 0 {
-            i -= 1;
-            let node = &self.nodes[stack[i]];
+        loop {
+            let node = &self.nodes[node_idx];
 
             if let Some(n) = node.n {
                 // leaf node: check for hits
@@ -301,31 +300,49 @@ impl Bvh {
                     }
                 }
             } else {
-                // check bbox for left and right children and push them to the stack
-                // if they intersect the ray
-                let left = &self.nodes[node.start];
-                let right = &self.nodes[node.start + 1];
-                let ldist = left.hit_dist(r, ray_t);
-                let rdist = right.hit_dist(r, ray_t);
+                // interior node: check bboxs for left and right children to push to the stack
+                let i_left = node.start;
+                let i_right = node.start + 1;
+                let d_left = self.nodes[i_left].hit_dist(r, ray_t);
+                let d_right = self.nodes[i_right].hit_dist(r, ray_t);
 
-                let ((a, adist), (b, bdist)) = if ldist < rdist {
-                    ((node.start, ldist), (node.start + 1, rdist))
+                // order the hits based from near to far
+                let ((i_near, d_near), (i_far, d_far)) = if d_left < d_right {
+                    ((i_left, d_left), (i_right, d_right))
                 } else {
-                    ((node.start + 1, rdist), (node.start, ldist))
+                    ((i_right, d_right), (i_left, d_left))
                 };
 
-                if adist < ray_t.max {
-                    stack[i] = a;
-                    i += 1;
+                // If the near child is within range then push the far child to the stack if it is
+                // within range and proceed with processing the near child.
+                if d_near < ray_t.max {
+                    if d_far < ray_t.max {
+                        stack[stack_len] = (i_far, d_far);
+                        stack_len += 1;
+                    }
+                    node_idx = i_near;
+                    continue;
                 }
-                if bdist < ray_t.max {
-                    stack[i] = b;
-                    i += 1;
+            }
+
+            // Clean up the stack before processing the next node
+            loop {
+                // If we have no more candidates then we're done
+                if stack_len == 0 {
+                    return hr;
+                }
+
+                stack_len -= 1;
+
+                // Pop the next node from the stack and process it if it is within range.
+                // If not, we drop it and move on to the next node.
+                let (next_idx, next_dist) = stack[stack_len];
+                if next_dist < ray_t.max {
+                    node_idx = next_idx;
+                    break;
                 }
             }
         }
-
-        hr
     }
 }
 

@@ -213,7 +213,7 @@ impl Camera {
     fn ray_color(&self, r_in: &mut Ray, r_out: &mut Ray, bvh: &Bvh, rng: &mut Rng) -> Color {
         let mut incoming_light = color::BLACK;
         let mut rcolor = color::WHITE;
-        let mut stack = [0; MAX_BVH_DEPTH];
+        let mut stack = [(0, 0.0); MAX_BVH_DEPTH];
 
         for _ in 0..self.max_bounces {
             let hr = match bvh.hits(r_in, Interval::new(0.001, f32::INFINITY), &mut stack) {

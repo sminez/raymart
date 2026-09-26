@@ -25,10 +25,10 @@ fuzz = 0.1
 
 [materials.white]
 kind = "specular"
-color = [0.7, 0.65, 0.6]
-spec_color = 0.8
+color = [0.7, 0.55, 0.4]
+spec_color = 0.5
 smoothness = 0.2
-spec_prob = 0.2
+spec_prob = 0.1
 
 [materials.light]
 kind = "light"
@@ -86,5 +86,5 @@ center = [0.0, 0.0, 0.0]
 r = 0.5
 subdivisions = 7
 frac_inv = 2.0
-noise_depth = 8
+noise_depth = 7
 material = "white"

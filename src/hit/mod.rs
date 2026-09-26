@@ -41,7 +41,7 @@ impl Hittable {
             Self::Triangle(t) => t.hits(r, ray_t),
             Self::ConstantMedium(c) => c.hits(r, ray_t),
             Self::List(l) => l.hits(r, ray_t),
-            Self::Bvh(b) => b.hits(r, ray_t, &mut [0; MAX_BVH_DEPTH]),
+            Self::Bvh(b) => b.hits(r, ray_t, &mut [(0, 0.0); MAX_BVH_DEPTH]),
             Self::Translate(t) => t.hits(r, ray_t),
             Self::Rotate(ro) => ro.hits(r, ray_t),
         }
