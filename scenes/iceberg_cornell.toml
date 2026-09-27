@@ -1,15 +1,15 @@
 # Scene configuration
-samples_per_pixel = 2000
+samples_per_pixel = 600
 samples_step_size = 10
 max_bounces = 5
-image_width = 1200
+image_width = 1400
 bg = 0.0
 
 # Camera
 fov = 40.0
 aspect_ratio = 1.0
-from = [278.0, 278.0, -800.0]
-at = [278.0, 278.0, 0.0]
+from = [0.5, 0.5, -1.45]
+at = [0.5, 0.5, 0.0]
 v_up = [0.0, 1.0, 0.0]
 
 # Debug point view
@@ -21,6 +21,10 @@ point_radius = 0.005
 [materials.light]
 kind = "light"
 color = [25.0, 23.0, 21.0]
+
+[materials.dim_light]
+kind = "light"
+color = [15.0, 13.0, 11.0]
 
 [materials.red]
 kind = "solid"
@@ -38,29 +42,10 @@ color = [0.12, 0.25, 0.55]
 kind = "solid"
 color = 0.73
 
-[materials.glass]
-kind = "dielectric"
-ref_index = 1.33
-
-[materials.air]
-kind = "dielectric"
-ref_index = 0.769
-
-[materials.crystal]
-kind = "dielectric"
-ref_index = 3.0
-
 [materials.mirror]
 kind = "metal"
 color = 0.93
-fuzz = 0.4
-
-[materials.bronze]
-kind = "specular"
-color = [0.6, 0.2, 0.1]
-spec_color = [0.6, 0.8, 0.3]
-smoothness = 0.6
-spec_prob = 0.7
+fuzz = 0.0
 
 [materials.marble]
 kind = "specular"
@@ -73,61 +58,72 @@ spec_prob = 0.1
 
 [[objects]]
 kind = "noise_sphere"
-center = [277.5, 237.5, 277.5]
-r = 220
+center = [0.5, 0.4, 0.5]
+r = 0.4
 subdivisions = 7
 subtract = false
 frac_inv = 2.0
-noise_depth = 7
+noise_depth = 9
 material = "marble"
 
 [[objects]]
 kind = "box"
 vert1 = [0.0, 0.0, 0.0]
-vert2 = [555.0, 555.0, 555.0]
+vert2 = [1.0, 1.0, 1.0]
 material = "white"
 density = 0.001
 
-# Cornell Box
-
 [[objects]]
-kind = "quad"
-q = [343.0, 554.0, 332.0]
-u = [-130.0, 0.0, 0.0]
-v = [0.0, 0.0, -105.0]
+kind = "sphere"
+center = [0.4, 0.4, 1.0]
+r = 0.15
 material = "light"
 
+
+# Cornell Box
+
+# [[objects]]
+# kind = "quad"
+# q = [0.61, 0.999, 0.59]
+# u = [-0.23, 0.0, 0.0]
+# v = [0.0, 0.0, -0.18]
+# material = "light"
+
 [[objects]]
 kind = "quad"
-q = [555.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
+q = [1.0, 0.0, 0.0]
+u = [0.0, 1.0, 0.0]
+v = [0.0, 0.0, 1.0]
 material = "green"
 
 [[objects]]
 kind = "quad"
 q = [0.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
+u = [0.0, 1.0, 0.0]
+v = [0.0, 0.0, 1.0]
 material = "red"
 
 [[objects]]
 kind = "quad"
 q = [0.0, 0.0, 0.0]
-u = [555.0, 0.0, 0.0]
-v = [0.0, 0.0, 555.0]
-material = "white"
+u = [1.0, 0.0, 0.0]
+v = [0.0, 0.0, 1.0]
+# material = "white"
+material = "mirror"
 
 [[objects]]
 kind = "quad"
-q = [0.0, 0.0, 555.0]
-u = [555.0, 0.0, 0.0]
-v = [0.0, 555.0, 0.0]
+q = [0.0, 0.0, 1.0]
+u = [1.0, 0.0, 0.0]
+v = [0.0, 1.0, 0.0]
+material = "white"
+# material = "mirror"
+
+[[objects]]
+kind = "quad"
+q = [1.0, 1.0, 1.0]
+u = [-1.0, 0.0, 0.0]
+v = [0.0, 0.0, -1.0]
+# material = "white"
+# material = "mirror"
 material = "blue"
-
-[[objects]]
-kind = "quad"
-q = [555.0, 555.0, 555.0]
-u = [-555.0, 0.0, 0.0]
-v = [0.0, 0.0, -555.0]
-material = "white"

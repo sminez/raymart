@@ -8,8 +8,8 @@ bg = 0.0
 # Camera
 fov = 40.0
 aspect_ratio = 1.0
-from = [278.0, 278.0, -760.0]
-at = [278.0, 278.0, 0.0]
+from = [0.5, 0.5, -1.45]
+at = [0.5, 0.5, 0.0]
 v_up = [0.0, 1.0, 0.0]
 
 # Debug point view
@@ -38,11 +38,10 @@ color = [0.12, 0.25, 0.55]
 kind = "solid"
 color = 0.73
 
-# Use for the infinite mirror effect
-# [materials.white]
-# kind = "metal"
-# color = 0.93
-# fuzz = 0.0
+[materials.mirror]
+kind = "metal"
+color = 0.93
+fuzz = 0.0
 
 
 # Additional scene objects
@@ -50,60 +49,60 @@ color = 0.73
 [[objects]]
 kind = "box"
 vert1 = [0.0, 0.0, 0.0]
-vert2 = [165.0, 165.0, 165.0]
+vert2 = [0.3, 0.3, 0.3]
 material = "white"
 rotate = -18.0
-translate = [130.0, 0.0, 65.0]
+translate = [0.23, 0.0, 0.12]
 
 [[objects]]
 kind = "box"
 vert1 = [0.0, 0.0, 0.0]
-vert2 = [165.0, 330.0, 165.0]
+vert2 = [0.3, 0.6, 0.3]
 material = "white"
 rotate = 15.0
-translate = [265.0, 0.0, 295.0]
+translate = [0.48, 0.0, 0.53]
 
 
 # Cornell Box
 
 [[objects]]
 kind = "quad"
-q = [343.0, 554.0, 332.0]
-u = [-130.0, 0.0, 0.0]
-v = [0.0, 0.0, -105.0]
+q = [0.61, 0.999, 0.59]
+u = [-0.23, 0.0, 0.0]
+v = [0.0, 0.0, -0.18]
 material = "light"
 
 [[objects]]
 kind = "quad"
-q = [555.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
+q = [1.0, 0.0, 0.0]
+u = [0.0, 1.0, 0.0]
+v = [0.0, 0.0, 1.0]
 material = "green"
 
 [[objects]]
 kind = "quad"
 q = [0.0, 0.0, 0.0]
-u = [0.0, 555.0, 0.0]
-v = [0.0, 0.0, 555.0]
+u = [0.0, 1.0, 0.0]
+v = [0.0, 0.0, 1.0]
 material = "red"
 
 [[objects]]
 kind = "quad"
 q = [0.0, 0.0, 0.0]
-u = [555.0, 0.0, 0.0]
-v = [0.0, 0.0, 555.0]
+u = [1.0, 0.0, 0.0]
+v = [0.0, 0.0, 1.0]
 material = "white"
 
 [[objects]]
 kind = "quad"
-q = [0.0, 0.0, 555.0]
-u = [555.0, 0.0, 0.0]
-v = [0.0, 555.0, 0.0]
+q = [0.0, 0.0, 1.0]
+u = [1.0, 0.0, 0.0]
+v = [0.0, 1.0, 0.0]
 material = "blue"
 
 [[objects]]
 kind = "quad"
-q = [555.0, 555.0, 555.0]
-u = [-555.0, 0.0, 0.0]
-v = [0.0, 0.0, -555.0]
+q = [1.0, 1.0, 1.0]
+u = [-1.0, 0.0, 0.0]
+v = [0.0, 0.0, -1.0]
 material = "white"
