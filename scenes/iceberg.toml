@@ -1,5 +1,5 @@
 # Scene configuration
-samples_per_pixel = 2500
+samples_per_pixel = 500
 samples_step_size = 10
 max_bounces = 5
 image_width = 1500
@@ -80,7 +80,6 @@ material = "dim_light"
 [[objects]]
 kind = "sphere"
 center = [-3.5, 1.2, 2.2]
-# r = 0.9
 r = 1.2
 material = "light"
 
@@ -89,8 +88,9 @@ material = "light"
 [[objects]]
 kind = "noise_sphere"
 center = [0.0, 0.0, 0.0]
-r = 0.5
+r = 0.4
 subdivisions = 7
-frac_inv = 2.0
-noise_depth = 7
+subtract = false
+frac_inv = 3.0
+noise_depth = 9
 material = "marble"
