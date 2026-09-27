@@ -224,9 +224,9 @@ impl Material {
         }
     }
 
-    pub fn color_emitted(&self, u: f32, v: f32, p: P3) -> Color {
+    pub fn color_emitted(&self, hr: &HitRecord) -> Color {
         match self {
-            Self::DiffuseLight { texture } => texture.value(u, v, p),
+            Self::DiffuseLight { texture } if hr.front_face => texture.value(hr.u, hr.v, hr.p),
             _ => color::BLACK,
         }
     }

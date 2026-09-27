@@ -228,7 +228,7 @@ impl Camera {
                 None => return rcolor * self.bg,
             };
 
-            let emitted_light = hr.mat.color_emitted(hr.u, hr.v, hr.p);
+            let emitted_light = hr.mat.color_emitted(&hr);
             incoming_light += emitted_light * rcolor;
 
             match hr.mat.scatter(r_in, r_out, &hr, rng) {
