@@ -1127,6 +1127,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "criterion",
+ "gif",
  "glam",
  "image",
  "rand 0.10.3",

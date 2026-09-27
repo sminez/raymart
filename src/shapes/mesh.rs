@@ -5,7 +5,7 @@ use std::{collections::HashMap, f32::consts::PI, mem};
 pub struct SphereMesh {
     center: P3,
     radius: f32,
-    vertices: Vec<P3>,
+    directions: Vec<P3>,
     triangles: Vec<[usize; 3]>,
     mat: &'static Material,
 }
@@ -19,46 +19,66 @@ impl SphereMesh {
         mat: &'static Material,
     ) -> Self {
         let radius = radius.max(0.0);
-        let vertices = directions
-            .into_iter()
-            .map(|dir| center + radius * dir)
-            .collect();
 
         Self {
             center,
             radius,
-            vertices,
+            directions,
             triangles,
             mat,
         }
     }
 
-    pub fn map_vertices<F>(&mut self, mut f: F)
+    pub fn map_directions<F>(&mut self, mut f: F)
     where
         F: FnMut(P3, f32, &mut P3),
     {
-        self.vertices
+        self.directions
             .iter_mut()
             .for_each(|v| (f)(self.center, self.radius, v));
     }
 
     pub fn into_mesh(self) -> Hittable {
+        let vs: Vec<V3> = self
+            .directions
+            .into_iter()
+            .map(|dir| self.center + self.radius * dir)
+            .collect();
+
         let hittables: Vec<_> = self
             .triangles
             .into_iter()
-            .flat_map(|[i, j, k]| {
-                try_triangle(
-                    self.center,
-                    self.vertices[i],
-                    self.vertices[j],
-                    self.vertices[k],
-                    self.mat,
-                )
-            })
+            .flat_map(|[i, j, k]| try_triangle(self.center, vs[i], vs[j], vs[k], self.mat))
             .map(Hittable::from)
             .collect();
 
         Hittable::Bvh(Bvh::new(hittables))
+    }
+
+    pub fn scale(&mut self, weight: f32) {
+        self.directions.iter_mut().for_each(|v| *v *= weight);
+    }
+
+    pub fn translate(&mut self, v: V3) {
+        self.center += v;
+    }
+
+    pub fn rotate_vertices_x(&mut self, angle: f32) {
+        self.directions
+            .iter_mut()
+            .for_each(|v| *v = v.rotate_x(angle.to_radians()));
+    }
+
+    pub fn rotate_vertices_y(&mut self, angle: f32) {
+        self.directions
+            .iter_mut()
+            .for_each(|v| *v = v.rotate_y(angle.to_radians()));
+    }
+
+    pub fn rotate_vertices_z(&mut self, angle: f32) {
+        self.directions
+            .iter_mut()
+            .for_each(|v| *v = v.rotate_z(angle.to_radians()));
     }
 
     /// See "The UV Sphere" in https://danielsieger.com/blog/2021/03/27/generating-spheres.html
@@ -151,14 +171,32 @@ impl SphereMesh {
         noise_depth: usize,
         mat: &'static Material,
     ) -> Self {
-        let mut mesh = TriangleMesh::unit_icosahedron();
-        mesh.subdivide(subdivisions);
-        mesh.apply_noise(
+        Self::noise_sphere_with_source(
+            center,
+            radius,
+            subdivisions,
             subtract,
             frac_inv,
             noise_depth,
+            mat,
             &Perlin::new_from_thread_rng(),
-        );
+        )
+    }
+
+    #[expect(clippy::too_many_arguments)]
+    pub fn noise_sphere_with_source(
+        center: P3,
+        radius: f32,
+        subdivisions: usize,
+        subtract: bool,
+        frac_inv: f32,
+        noise_depth: usize,
+        mat: &'static Material,
+        source: &Perlin<256>,
+    ) -> Self {
+        let mut mesh = TriangleMesh::unit_icosahedron();
+        mesh.subdivide(subdivisions);
+        mesh.apply_noise(subtract, frac_inv, noise_depth, source);
 
         Self::new(center, radius, mesh.directions, mesh.triangles, mat)
     }

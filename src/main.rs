@@ -1,6 +1,6 @@
-use raymart::{sdl::MainThreadState, Backend, Bvh, Scene, SCENE_PATH};
+use raymart::{color, sdl::MainThreadState, Backend, Bvh, Scene, SCENE_PATH};
 use sdl2::{event::Event, keyboard::Keycode};
-use std::env;
+use std::{env, fs};
 
 fn main() -> anyhow::Result<()> {
     let path = env::args().nth(1).unwrap_or_else(|| SCENE_PATH.to_string());
@@ -22,7 +22,11 @@ fn main() -> anyhow::Result<()> {
     let mut backend = Backend::init(w, h, canvas, &tc)?;
 
     eprintln!("Rendering...");
-    camera.render_sdl(bvh_tree, &mut mts, &mut backend);
+    let (_, pixels) = camera.render_sdl(bvh_tree, &mut mts, &mut backend);
+
+    eprintln!("writing ppm file");
+    let s: String = pixels.iter().map(|c| color::ppm_string(*c)).collect();
+    fs::write("test.ppm", format!("P3\n{w} {h}\n255\n{s}")).unwrap();
 
     eprintln!("\nDone");
 

@@ -1,5 +1,5 @@
 use crate::{v3, Color, Rng, P3, V3};
-use rand::{random_range, rngs::ThreadRng, SeedableRng};
+use rand::{rngs::ThreadRng, RngExt, SeedableRng};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Perlin<const N: usize = 256> {
@@ -36,7 +36,7 @@ impl<const N: usize> Perlin<N> {
 
         for s in [&mut perm_x, &mut perm_y, &mut perm_z] {
             for i in (N - 1)..0 {
-                let target = random_range(0..i);
+                let target = rng.random_range(0..i);
                 s.swap(i, target);
             }
         }

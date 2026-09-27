@@ -8,7 +8,7 @@ use crate::{
 use rand::{RngExt, SeedableRng};
 use rayon::prelude::*;
 use sdl2::{event::Event, keyboard::Keycode};
-use std::{cmp::max, fs, mem, time::Instant};
+use std::{cmp::max, mem, time::Instant};
 
 const RAND_JITTER: usize = 1000;
 
@@ -100,12 +100,19 @@ impl Camera {
         (self.image_width as u32, self.image_height as u32)
     }
 
-    pub fn render_sdl(&self, bvh: Bvh, mts: &mut MainThreadState, backend: &mut Backend<'_>) {
+    pub fn render_sdl(
+        &self,
+        bvh: Bvh,
+        mts: &mut MainThreadState,
+        backend: &mut Backend<'_>,
+    ) -> (bool, Vec<Color>) {
         let start = Instant::now();
         let w = self.image_width as usize;
         let h = self.image_height as usize;
         let mut pixels = vec![Color::default(); w * h];
         let mut new_pixels = vec![Color::default(); w * h];
+
+        let mut early_return = false;
 
         'iters: for i in 1..=self.iterations {
             let scale = 1.0 / (i * self.samples_pp) as f32;
@@ -134,27 +141,27 @@ impl Camera {
 
             while let Some(evt) = mts.poll_event() {
                 match evt {
-                    Event::Quit { .. } => break 'iters,
+                    Event::Quit { .. } => {
+                        early_return = true;
+                        break 'iters;
+                    }
                     Event::KeyDown {
                         keycode: Some(Keycode::Q | Keycode::Escape),
                         repeat: false,
                         ..
-                    } => break 'iters,
+                    } => {
+                        early_return = true;
+                        break 'iters;
+                    }
                     _ => (),
                 }
             }
         }
 
-        eprintln!("writing ppm file");
-        let s: String = pixels.iter().map(|c| color::ppm_string(*c)).collect();
-        fs::write(
-            "test.ppm",
-            format!("P3\n{} {}\n255\n{s}", self.image_width, self.image_height),
-        )
-        .unwrap();
-
         let render_time = Instant::now().duration_since(start);
         eprintln!("\nRender time: {}s", render_time.as_secs());
+
+        (early_return, pixels)
     }
 
     pub fn render_pass(&self, i: usize, bvh: &Bvh, pixels: &mut [Color]) {

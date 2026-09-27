@@ -103,9 +103,21 @@ pub struct Rotate {
 
 impl Rotate {
     pub fn new(inner: Hittable, angle: f32) -> Rotate {
-        let to_world = Mat3::from_rotation_y(angle.to_radians());
-        let to_obj = to_world.transpose();
-        let bbox = inner.bounding_box();
+        let mut s = Self {
+            inner: Box::new(inner),
+            to_obj: Mat3::ZERO,
+            to_world: Mat3::ZERO,
+            bbox: AABBox::default(),
+        };
+        s.set_angle(angle);
+
+        s
+    }
+
+    pub fn set_angle(&mut self, angle: f32) {
+        self.to_world = Mat3::from_rotation_y(angle.to_radians());
+        self.to_obj = self.to_world.transpose();
+        let bbox = self.inner.bounding_box();
 
         let mut min = P3::splat(f32::INFINITY);
         let mut max = P3::splat(-f32::INFINITY);
@@ -113,21 +125,14 @@ impl Rotate {
         for x in [bbox.x.min, bbox.x.max] {
             for y in [bbox.y.min, bbox.y.max] {
                 for z in [bbox.z.min, bbox.z.max] {
-                    let v = to_world * V3::new(x, y, z);
+                    let v = self.to_world * V3::new(x, y, z);
                     min = min.min(v);
                     max = max.max(v);
                 }
             }
         }
 
-        let bbox = AABBox::new_from_points(min, max);
-
-        Self {
-            inner: Box::new(inner),
-            to_obj,
-            to_world,
-            bbox,
-        }
+        self.bbox = AABBox::new_from_points(min, max);
     }
 
     pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
