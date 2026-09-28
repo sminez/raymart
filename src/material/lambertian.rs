@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use crate::{
     color, leak_ptr,
     material::Material,
@@ -7,6 +5,7 @@ use crate::{
     v3::{self, random_cosine_direction, Onb},
     Color, HitRecord, Ray, Rng,
 };
+use std::f32::consts::FRAC_1_PI;
 
 #[derive(Debug, Clone)]
 pub struct Lambertian {
@@ -62,7 +61,7 @@ impl Material for Lambertian {
         if cos_theta < 0.0 {
             0.0
         } else {
-            cos_theta / PI
+            cos_theta * FRAC_1_PI
         }
     }
 
@@ -71,7 +70,6 @@ impl Material for Lambertian {
         _r_in: &Ray,
         r_out: &mut Ray,
         hr: &HitRecord,
-        pdf: &mut f32,
         rng: &mut Rng,
     ) -> Option<Color> {
         let onb = Onb::new(hr.normal);
@@ -83,7 +81,7 @@ impl Material for Lambertian {
         let dir = scatter_direction.normalize();
 
         r_out.set(hr.p, dir);
-        *pdf = onb.w.dot(dir) / PI;
+        // *pdf = onb.w.dot(dir) * FRAC_1_PI;
 
         Some(attenuation)
     }

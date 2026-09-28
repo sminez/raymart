@@ -38,14 +38,7 @@ impl Material for Specular {
         0.0
     }
 
-    fn scatter(
-        &self,
-        r_in: &Ray,
-        r_out: &mut Ray,
-        hr: &HitRecord,
-        _pdf: &mut f32,
-        rng: &mut Rng,
-    ) -> Option<Color> {
+    fn scatter(&self, r_in: &Ray, r_out: &mut Ray, hr: &HitRecord, rng: &mut Rng) -> Option<Color> {
         let diffuse_dir = hr.normal + v3::random_unit_vector(rng);
         let is_specular = self.prob > rng.random_range(0.0..1.0);
         let (dir, color) = if is_specular {

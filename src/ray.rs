@@ -221,7 +221,6 @@ impl Camera {
         let mut radiance = color::BLACK;
         let mut beta = color::WHITE;
         let mut stack = [(0, 0.0); MAX_BVH_DEPTH];
-        let mut pdf_value = 0.0;
 
         for _ in 0..self.max_bounces {
             let hr = match bvh.hits(r_in, Interval::new(0.001, f32::INFINITY), &mut stack) {
@@ -231,19 +230,12 @@ impl Camera {
 
             radiance += beta * hr.mat.color_emitted(&hr);
 
-            let attenuation = match hr.mat.scatter(r_in, r_out, &hr, &mut pdf_value, rng) {
+            let attenuation = match hr.mat.scatter(r_in, r_out, &hr, rng) {
                 Some(attenuation) => attenuation,
                 None => break,
             };
 
-            let scattering_pdf = hr.mat.scattering_pdf(r_in, r_out, &hr);
-            let pdf_value = scattering_pdf;
-
-            if pdf_value <= 0.0 {
-                break;
-            }
-
-            beta *= attenuation * scattering_pdf / pdf_value;
+            beta *= attenuation; // * scattering_pdf / pdf_value;
 
             if (beta.x + beta.y + beta.z) < 0.0001 {
                 break; // early exit if we can't contribute more light from here

@@ -30,14 +30,7 @@ impl Material for Metal {
         0.0
     }
 
-    fn scatter(
-        &self,
-        r_in: &Ray,
-        r_out: &mut Ray,
-        hr: &HitRecord,
-        _pdf: &mut f32,
-        rng: &mut Rng,
-    ) -> Option<Color> {
+    fn scatter(&self, r_in: &Ray, r_out: &mut Ray, hr: &HitRecord, rng: &mut Rng) -> Option<Color> {
         let reflected =
             r_in.dir.reflect(hr.normal).normalize() + (self.fuzz * v3::random_unit_vector(rng));
         r_out.set(hr.p, reflected);

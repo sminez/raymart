@@ -42,7 +42,6 @@ impl Material for DiffuseLight {
         _r_in: &Ray,
         _r_out: &mut Ray,
         _hr: &HitRecord,
-        _pdf: &mut f32,
         _rng: &mut Rng,
     ) -> Option<Color> {
         None

@@ -41,12 +41,11 @@ impl Material for Isotropic {
         _r_in: &Ray,
         r_out: &mut Ray,
         hr: &HitRecord,
-        pdf: &mut f32,
         rng: &mut Rng,
     ) -> Option<Color> {
         r_out.set(hr.p, v3::random_unit_vector(rng));
         let attenuation = self.texture.value(hr.u, hr.v, hr.p);
-        *pdf = INV_4PI;
+        // *pdf = INV_4PI;
 
         Some(attenuation)
     }
