@@ -268,6 +268,8 @@ pub enum HittableSpec {
         subtract: bool,
         frac_inv: f32,
         noise_depth: usize,
+        #[serde(default)]
+        seed: Option<String>,
         material: String,
     },
     Box {
@@ -347,6 +349,7 @@ impl HittableSpec {
                 subtract,
                 frac_inv,
                 noise_depth,
+                seed,
                 material,
             } => SphereMesh::noise_sphere(
                 (*center).into(),
@@ -355,6 +358,7 @@ impl HittableSpec {
                 *subtract,
                 *frac_inv,
                 *noise_depth,
+                seed.as_deref(),
                 mat(material),
             )
             .into_dyn_hittable(),

@@ -1,6 +1,6 @@
 # Scene configuration
 samples_per_pixel = 600
-samples_step_size = 10
+samples_step_size = 50
 max_bounces = 5
 image_width = 1400
 bg = 0.0
@@ -47,6 +47,11 @@ kind = "metal"
 color = 0.93
 fuzz = 0.0
 
+[materials.gold]
+kind = "metal"
+color = [0.8, 0.6, 0.2]
+fuzz = 0.4
+
 [materials.marble]
 kind = "specular"
 color = [0.7, 0.55, 0.4]
@@ -64,7 +69,7 @@ subdivisions = 7
 subtract = false
 frac_inv = 2.0
 noise_depth = 9
-material = "marble"
+material = "gold"
 
 [[objects]]
 kind = "box"

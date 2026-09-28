@@ -1,7 +1,15 @@
+use rand::SeedableRng;
+
 use crate::{
-    bvh::Bvh, hit::Hittable, leak_ptr, material::Material, noise::Perlin, shapes::Triangle, P3, V3,
+    bvh::Bvh, hit::Hittable, leak_ptr, material::Material, noise::Perlin, shapes::Triangle, Rng,
+    P3, V3,
 };
-use std::{collections::HashMap, f32::consts::PI, mem};
+use std::{
+    collections::HashMap,
+    f32::consts::PI,
+    hash::{DefaultHasher, Hash, Hasher},
+    mem,
+};
 
 #[derive(Debug, Clone)]
 pub struct SphereMesh {
@@ -172,6 +180,7 @@ impl SphereMesh {
         Self::new(center, radius, mesh.directions, mesh.triangles, mat)
     }
 
+    #[expect(clippy::too_many_arguments)]
     pub fn noise_sphere(
         center: P3,
         radius: f32,
@@ -179,8 +188,22 @@ impl SphereMesh {
         subtract: bool,
         frac_inv: f32,
         noise_depth: usize,
+        seed: Option<&str>,
         mat: &'static dyn Material,
     ) -> Self {
+        let source: Perlin<256> = match seed {
+            // Seed rng for reproducible noise
+            Some(seed_str) => {
+                let mut hasher = DefaultHasher::default();
+                seed_str.hash(&mut hasher);
+                let seed = hasher.finish();
+                let mut rng = Rng::seed_from_u64(seed);
+
+                Perlin::new(&mut rng)
+            }
+            None => Perlin::new_from_thread_rng(),
+        };
+
         Self::noise_sphere_with_source(
             center,
             radius,
@@ -189,7 +212,7 @@ impl SphereMesh {
             frac_inv,
             noise_depth,
             mat,
-            &Perlin::new_from_thread_rng(),
+            &source,
         )
     }
 

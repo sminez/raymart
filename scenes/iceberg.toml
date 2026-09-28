@@ -35,6 +35,11 @@ spec_color = 0.5
 smoothness = 0.1
 spec_prob = 0.06
 
+[materials.gold]
+kind = "metal"
+color = [0.8, 0.6, 0.2]
+fuzz = 0.4
+
 [materials.light]
 kind = "light"
 color = [15.0, 13.0, 11.0]
@@ -91,6 +96,8 @@ center = [0.0, 0.0, 0.0]
 r = 0.4
 subdivisions = 7
 subtract = false
-frac_inv = 3.0
+frac_inv = 2.0
 noise_depth = 9
+seed = "sminez"
 material = "marble"
+# material = "gold"

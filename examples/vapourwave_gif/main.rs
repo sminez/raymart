@@ -145,7 +145,7 @@ fn render_gif(
 
     eprintln!("\nRendering GIF");
 
-    let mut f = File::create("examples/vapourwave_gif/out.gif").unwrap();
+    let mut f = File::create("out.gif").unwrap();
     let mut encoder = Encoder::new(&mut f, w as u16, h as u16, &[]).unwrap();
     encoder.set_repeat(Repeat::Infinite).unwrap();
 
