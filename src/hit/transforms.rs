@@ -10,13 +10,13 @@ use rand::random_range;
 
 #[derive(Debug, Clone)]
 pub struct ConstantMedium {
-    boundary: Box<Hittable>,
+    boundary: &'static dyn Hittable,
     neg_inv_density: f32,
     phase_func: &'static dyn Material,
 }
 
 impl ConstantMedium {
-    pub fn new(boundary: Hittable, density: f32, albedo: Color) -> ConstantMedium {
+    pub fn new(boundary: &'static dyn Hittable, density: f32, albedo: Color) -> ConstantMedium {
         Self::new_with_texture(
             boundary,
             density,
@@ -25,24 +25,26 @@ impl ConstantMedium {
     }
 
     pub fn new_with_texture(
-        boundary: Hittable,
+        boundary: &'static dyn Hittable,
         density: f32,
         texture: &'static dyn Texture,
     ) -> ConstantMedium {
         let neg_inv_density = -1.0 / density;
 
         Self {
-            boundary: Box::new(boundary),
+            boundary,
             neg_inv_density,
             phase_func: Isotropic::new_mat(texture),
         }
     }
+}
 
-    pub fn bounding_box(&self) -> AABBox {
+impl Hittable for ConstantMedium {
+    fn bounding_box(&self) -> AABBox {
         self.boundary.bounding_box()
     }
 
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         let mut hr1 = self.boundary.hits(r, Interval::UNIVERSE)?;
         let i2 = Interval::new(hr1.t + 0.0001, f32::INFINITY);
         let mut hr2 = self.boundary.hits(r, i2)?;
@@ -72,23 +74,29 @@ impl ConstantMedium {
 
 #[derive(Debug, Clone)]
 pub struct Translate {
-    inner: Box<Hittable>,
+    inner: &'static dyn Hittable,
     offset: V3,
-    pub bbox: AABBox,
+    bbox: AABBox,
 }
 
 impl Translate {
-    pub fn new(inner: Hittable, offset: V3) -> Translate {
+    pub fn new(inner: &'static dyn Hittable, offset: V3) -> Translate {
         let bbox = inner.bounding_box() + offset;
 
         Self {
-            inner: Box::new(inner),
+            inner,
             offset,
             bbox,
         }
     }
+}
 
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+impl Hittable for Translate {
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
+    }
+
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         // Move the ray back by the offset
         let offset_r = Ray::new(r.orig - self.offset, r.dir);
 
@@ -104,29 +112,17 @@ impl Translate {
 /// Rotation around y
 #[derive(Debug, Clone)]
 pub struct Rotate {
-    inner: Box<Hittable>,
+    inner: &'static dyn Hittable,
     to_obj: Mat3,
     to_world: Mat3,
-    pub bbox: AABBox,
+    bbox: AABBox,
 }
 
 impl Rotate {
-    pub fn new(inner: Hittable, angle: f32) -> Rotate {
-        let mut s = Self {
-            inner: Box::new(inner),
-            to_obj: Mat3::ZERO,
-            to_world: Mat3::ZERO,
-            bbox: AABBox::default(),
-        };
-        s.set_angle(angle);
-
-        s
-    }
-
-    pub fn set_angle(&mut self, angle: f32) {
-        self.to_world = Mat3::from_rotation_y(angle.to_radians());
-        self.to_obj = self.to_world.transpose();
-        let bbox = self.inner.bounding_box();
+    pub fn new(inner: &'static dyn Hittable, angle: f32) -> Rotate {
+        let to_world = Mat3::from_rotation_y(angle.to_radians());
+        let to_obj = to_world.transpose();
+        let bbox = inner.bounding_box();
 
         let mut min = P3::splat(f32::INFINITY);
         let mut max = P3::splat(-f32::INFINITY);
@@ -134,17 +130,28 @@ impl Rotate {
         for x in [bbox.x.min, bbox.x.max] {
             for y in [bbox.y.min, bbox.y.max] {
                 for z in [bbox.z.min, bbox.z.max] {
-                    let v = self.to_world * V3::new(x, y, z);
+                    let v = to_world * V3::new(x, y, z);
                     min = min.min(v);
                     max = max.max(v);
                 }
             }
         }
 
-        self.bbox = AABBox::new_from_points(min, max);
+        Self {
+            inner,
+            to_obj,
+            to_world,
+            bbox: AABBox::new_from_points(min, max),
+        }
+    }
+}
+
+impl Hittable for Rotate {
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
     }
 
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         // Transform the ray from world space to object space.
         let rot_r = Ray::new(self.to_obj * r.orig, self.to_obj * r.dir);
 

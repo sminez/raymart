@@ -1,6 +1,5 @@
 //! Axis-aligned bounding boxes and Bounding Volume Hierarchies
 //! See Section 3 of https://raytracing.github.io/books/RayTracingTheNextWeek.html for the details
-
 use crate::{
     hit::{HitRecord, Hittable, Interval},
     Ray, P3, V3,
@@ -49,7 +48,7 @@ impl AABBox {
         bbox
     }
 
-    fn new_containing(hittables: &[Hittable]) -> Self {
+    fn new_containing(hittables: &[&'static dyn Hittable]) -> Self {
         let mut bbox = AABBox::EMPTY;
         for obj in hittables.iter() {
             bbox = AABBox::new_enclosing(bbox, obj.bounding_box());
@@ -183,7 +182,7 @@ fn split(
     n: usize,
     depth: usize,
     nodes: &mut Vec<FatNode>,
-    hittables: &mut [Hittable],
+    hittables: &mut [&'static dyn Hittable],
 ) {
     if n == 1 || depth >= MAX_BVH_DEPTH {
         // remaining hittables sit in this node
@@ -250,13 +249,13 @@ impl Node {
 
 #[derive(Debug, Default, Clone)]
 pub struct Bvh {
-    hittables: Vec<Hittable>,
+    hittables: Vec<&'static dyn Hittable>,
     nodes: Vec<Node>,
     pub bbox: AABBox,
 }
 
 impl Bvh {
-    pub fn new(mut hittables: Vec<Hittable>) -> Self {
+    pub fn new(mut hittables: Vec<&'static dyn Hittable>) -> Self {
         let bbox = AABBox::new_containing(&hittables);
         let mut fat_nodes = vec![FatNode::new(bbox, 0)];
 
@@ -278,7 +277,7 @@ impl Bvh {
         }
     }
 
-    pub fn hits(
+    pub fn hits_with_stack(
         &self,
         r: &Ray,
         mut ray_t: Interval,
@@ -343,6 +342,16 @@ impl Bvh {
                 }
             }
         }
+    }
+}
+
+impl Hittable for Bvh {
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
+    }
+
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        self.hits_with_stack(r, ray_t, &mut [(0, 0.0); MAX_BVH_DEPTH])
     }
 }
 

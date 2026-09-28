@@ -1,6 +1,7 @@
 use crate::{
     bvh::AABBox,
     hit::{Hittable, HittableList, Interval},
+    leak_ptr,
     material::Material,
     HitRecord, Ray, P3, V3,
 };
@@ -41,8 +42,14 @@ impl Quad {
             bbox,
         }
     }
+}
 
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+impl Hittable for Quad {
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
+    }
+
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         let denom = self.normal.dot(r.dir);
         if denom.abs() < 1e-8 {
             return None; // ray is parallel to our plane
@@ -75,7 +82,7 @@ impl Quad {
 }
 
 /// Construct a closed cuboid containing the two provided opposite vertices: a, b.
-pub fn cuboid(a: P3, b: P3, mat: &'static dyn Material) -> Hittable {
+pub fn cuboid(a: P3, b: P3, mat: &'static dyn Material) -> HittableList {
     let mut sides = HittableList::default();
     let min = a.min(b);
     let max = a.max(b);
@@ -84,12 +91,14 @@ pub fn cuboid(a: P3, b: P3, mat: &'static dyn Material) -> Hittable {
     let dy = V3::new(0.0, max.y - min.y, 0.0);
     let dz = V3::new(0.0, 0.0, max.z - min.z);
 
-    sides.add(Quad::new(P3::new(min.x, min.y, max.z), dx, dy, mat).into());
-    sides.add(Quad::new(P3::new(max.x, min.y, max.z), -dz, dy, mat).into());
-    sides.add(Quad::new(P3::new(max.x, min.y, min.z), -dx, dy, mat).into());
-    sides.add(Quad::new(P3::new(min.x, min.y, min.z), dz, dy, mat).into());
-    sides.add(Quad::new(P3::new(min.x, max.y, max.z), dx, -dz, mat).into());
-    sides.add(Quad::new(P3::new(min.x, min.y, min.z), dx, dz, mat).into());
+    let quad = |x, y, z, u, v| Quad::new(P3::new(x, y, z), u, v, mat);
 
-    sides.into()
+    sides.add(leak_ptr!(quad(min.x, min.y, max.z, dx, dy)));
+    sides.add(leak_ptr!(quad(max.x, min.y, max.z, -dz, dy)));
+    sides.add(leak_ptr!(quad(max.x, min.y, min.z, -dx, dy)));
+    sides.add(leak_ptr!(quad(min.x, min.y, min.z, dz, dy)));
+    sides.add(leak_ptr!(quad(min.x, max.y, max.z, dx, -dz)));
+    sides.add(leak_ptr!(quad(min.x, min.y, min.z, dx, dz)));
+
+    sides
 }

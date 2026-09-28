@@ -1,4 +1,6 @@
-use crate::{bvh::Bvh, hit::Hittable, material::Material, noise::Perlin, shapes::Triangle, P3, V3};
+use crate::{
+    bvh::Bvh, hit::Hittable, leak_ptr, material::Material, noise::Perlin, shapes::Triangle, P3, V3,
+};
 use std::{collections::HashMap, f32::consts::PI, mem};
 
 #[derive(Debug, Clone)]
@@ -38,7 +40,7 @@ impl SphereMesh {
             .for_each(|v| (f)(self.center, self.radius, v));
     }
 
-    pub fn into_mesh(self) -> Hittable {
+    pub fn into_mesh(self) -> Bvh {
         let vs: Vec<V3> = self
             .directions
             .into_iter()
@@ -49,10 +51,13 @@ impl SphereMesh {
             .triangles
             .into_iter()
             .flat_map(|[i, j, k]| try_triangle(self.center, vs[i], vs[j], vs[k], self.mat))
-            .map(Hittable::from)
             .collect();
 
-        Hittable::Bvh(Bvh::new(hittables))
+        Bvh::new(hittables)
+    }
+
+    pub fn into_dyn_hittable(self) -> &'static dyn Hittable {
+        leak_ptr!(self.into_mesh())
     }
 
     pub fn scale(&mut self, weight: f32) {
@@ -329,7 +334,13 @@ impl TriangleMesh {
     }
 }
 
-fn try_triangle(center: P3, a: P3, b: P3, c: P3, mat: &'static dyn Material) -> Option<Triangle> {
+fn try_triangle(
+    center: P3,
+    a: P3,
+    b: P3,
+    c: P3,
+    mat: &'static dyn Material,
+) -> Option<&'static dyn Hittable> {
     let normal = (b - a).cross(c - a);
     if normal.length_squared() < 1e-12 {
         return None;
@@ -342,5 +353,5 @@ fn try_triangle(center: P3, a: P3, b: P3, c: P3, mat: &'static dyn Material) -> 
         (b, c)
     };
 
-    Some(Triangle::new(a, b, c, mat))
+    Some(leak_ptr!(Triangle::new(a, b, c, mat)))
 }

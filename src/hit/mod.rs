@@ -1,94 +1,11 @@
-use crate::{
-    bvh::{AABBox, Bvh, MAX_BVH_DEPTH},
-    material::Material,
-    shapes::{Quad, Sphere, Triangle},
-    Ray, P3, V3,
-};
-use std::ops::Add;
+use crate::{bvh::AABBox, material::Material, Ray, P3, V3};
+use std::{fmt, ops::Add};
 
 pub mod transforms;
 
-use transforms::{ConstantMedium, Rotate, Translate};
-
-#[derive(Debug, Clone)]
-pub enum Hittable {
-    // Primitives
-    Sphere(Sphere),
-    Quad(Quad),
-    Triangle(Triangle),
-    // Compound
-    List(HittableList),
-    Bvh(Bvh),
-    // Transforms
-    ConstantMedium(ConstantMedium),
-    Translate(Translate),
-    Rotate(Rotate),
-}
-
-impl Hittable {
-    pub fn translate(self, offset: V3) -> Hittable {
-        Self::Translate(Translate::new(self, offset))
-    }
-
-    pub fn rotate(self, angle: f32) -> Hittable {
-        Self::Rotate(Rotate::new(self, angle))
-    }
-
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
-        match self {
-            Self::Sphere(s) => s.hits(r, ray_t),
-            Self::Quad(q) => q.hits(r, ray_t),
-            Self::Triangle(t) => t.hits(r, ray_t),
-            Self::ConstantMedium(c) => c.hits(r, ray_t),
-            Self::List(l) => l.hits(r, ray_t),
-            Self::Bvh(b) => b.hits(r, ray_t, &mut [(0, 0.0); MAX_BVH_DEPTH]),
-            Self::Translate(t) => t.hits(r, ray_t),
-            Self::Rotate(ro) => ro.hits(r, ray_t),
-        }
-    }
-
-    pub fn bounding_box(&self) -> AABBox {
-        match self {
-            Self::Sphere(s) => s.bbox,
-            Self::Quad(q) => q.bbox,
-            Self::Triangle(t) => t.bbox,
-            Self::ConstantMedium(c) => c.bounding_box(),
-            Self::List(l) => l.bbox,
-            Self::Bvh(b) => b.bbox,
-            Self::Translate(t) => t.bbox,
-            Self::Rotate(r) => r.bbox,
-        }
-    }
-}
-
-impl From<Sphere> for Hittable {
-    fn from(s: Sphere) -> Self {
-        Self::Sphere(s)
-    }
-}
-
-impl From<Quad> for Hittable {
-    fn from(q: Quad) -> Self {
-        Self::Quad(q)
-    }
-}
-
-impl From<Triangle> for Hittable {
-    fn from(t: Triangle) -> Self {
-        Self::Triangle(t)
-    }
-}
-
-impl From<ConstantMedium> for Hittable {
-    fn from(c: ConstantMedium) -> Self {
-        Self::ConstantMedium(c)
-    }
-}
-
-impl From<HittableList> for Hittable {
-    fn from(l: HittableList) -> Self {
-        Self::List(l)
-    }
+pub trait Hittable: fmt::Debug + Send + Sync {
+    fn bounding_box(&self) -> AABBox;
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -219,21 +136,23 @@ impl HitRecord {
 
 #[derive(Default, Debug, Clone)]
 pub struct HittableList {
-    pub objects: Vec<Hittable>,
+    objects: Vec<&'static dyn Hittable>,
     bbox: AABBox,
 }
 
 impl HittableList {
-    pub fn clear(&mut self) {
-        self.objects.clear();
-    }
-
-    pub fn add(&mut self, obj: Hittable) {
+    pub fn add(&mut self, obj: &'static dyn Hittable) {
         self.bbox = AABBox::new_enclosing(self.bbox, obj.bounding_box());
         self.objects.push(obj);
     }
+}
 
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+impl Hittable for HittableList {
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
+    }
+
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         let mut rec: Option<HitRecord> = None;
         let mut closest_so_far = ray_t.max;
         for obj in self.objects.iter() {

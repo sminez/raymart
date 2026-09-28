@@ -1,4 +1,9 @@
-use crate::{bvh::AABBox, hit::Interval, material::Material, HitRecord, Ray, P3, V3};
+use crate::{
+    bvh::AABBox,
+    hit::{Hittable, Interval},
+    material::Material,
+    HitRecord, Ray, P3, V3,
+};
 
 #[derive(Debug, Clone)]
 pub struct Triangle {
@@ -30,10 +35,16 @@ impl Triangle {
             bbox: AABBox::new_enclosing(bbox1, bbox2),
         }
     }
+}
+
+impl Hittable for Triangle {
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
+    }
 
     // Calculate the intersection of a ray with a triangle using the Möller–Trumbore algorithm
     //   https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         // If r . normal is 0 then the ray is parallel to the triangle plane and no hit is possible
         let det = -(r.dir.dot(self.normal));
         if det.abs() < 1e-8 {

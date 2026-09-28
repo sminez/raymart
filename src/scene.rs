@@ -3,7 +3,11 @@
 //!   https://en.wikipedia.org/wiki/Wavefront_.obj_file
 use crate::{
     bvh::Bvh,
-    hit::{transforms::ConstantMedium, Hittable},
+    hit::{
+        transforms::{ConstantMedium, Rotate, Translate},
+        Hittable,
+    },
+    leak_ptr,
     material::{Dielectric, DiffuseLight, Isotropic, Lambertian, Material, Metal, Specular},
     p,
     ray::Camera,
@@ -140,13 +144,13 @@ impl Mesh {
         mats.get(&self.material).unwrap().as_color()
     }
 
-    fn as_hittable(
+    fn as_dyn_hittable(
         &self,
         mats: &HashMap<String, &'static dyn Material>,
         mat_specs: &HashMap<String, MatSpec>,
         as_points: bool,
         point_radius: f32,
-    ) -> Hittable {
+    ) -> &'static dyn Hittable {
         let (models, _) = load_obj(&self.path, &GPU_LOAD_OPTIONS).unwrap();
         let mat = *mats.get(&self.material).unwrap();
         let mut objects = Vec::with_capacity(models.iter().map(|m| m.mesh.indices.len()).sum());
@@ -181,13 +185,11 @@ impl Mesh {
                 }
 
                 if as_points {
-                    objects.extend(
-                        [a, b, c]
-                            .into_iter()
-                            .map(|p| Hittable::from(Sphere::new(p, point_radius, mat))),
-                    );
+                    objects.extend([a, b, c].into_iter().map(|p| {
+                        leak_ptr!(Sphere::new(p, point_radius, mat)) as &'static dyn Hittable
+                    }));
                 } else {
-                    objects.push(Triangle::new(a, b, c, mat).into());
+                    objects.push(leak_ptr!(Triangle::new(a, b, c, mat)));
                 }
             }
 
@@ -195,10 +197,10 @@ impl Mesh {
             eprintln!("    n hittables = {}", objects.len());
         }
 
-        let mut h = Hittable::Bvh(Bvh::new(objects));
+        let mut h: &'static dyn Hittable = leak_ptr!(Bvh::new(objects));
 
         if let Some(density) = self.meta.density {
-            h = ConstantMedium::new(h, density, self.color(mat_specs)).into();
+            h = leak_ptr!(ConstantMedium::new(h, density, self.color(mat_specs)));
         }
 
         h
@@ -214,20 +216,24 @@ pub struct ObjSpec {
 }
 
 impl ObjSpec {
-    fn as_hittable(
+    fn as_dyn_hittable(
         &self,
         mats: &HashMap<String, &'static dyn Material>,
         mat_specs: &HashMap<String, MatSpec>,
-    ) -> Hittable {
-        let mut h = self.hittable.as_hittable(mats);
+    ) -> &'static dyn Hittable {
+        let mut h = self.hittable.as_dyn_hittable(mats);
         if let Some(angle) = self.meta.rotate {
-            h = h.rotate(angle);
+            h = leak_ptr!(Rotate::new(h, angle));
         }
         if let Some(v) = self.meta.translate {
-            h = h.translate(v.into());
+            h = leak_ptr!(Translate::new(h, v.into()));
         }
         if let Some(density) = self.meta.density {
-            h = ConstantMedium::new(h, density, self.hittable.color(mat_specs)).into();
+            h = leak_ptr!(ConstantMedium::new(
+                h,
+                density,
+                self.hittable.color(mat_specs)
+            ));
         }
 
         h
@@ -298,7 +304,10 @@ impl HittableSpec {
         mat.as_color()
     }
 
-    fn as_hittable(&self, mats: &HashMap<String, &'static dyn Material>) -> Hittable {
+    fn as_dyn_hittable(
+        &self,
+        mats: &HashMap<String, &'static dyn Material>,
+    ) -> &'static dyn Hittable {
         let mat = |material: &str| {
             *mats
                 .get(material)
@@ -310,7 +319,9 @@ impl HittableSpec {
                 center,
                 r,
                 material,
-            } => Sphere::new((*center).into(), *r, mat(material)).into(),
+            } => {
+                leak_ptr!(Sphere::new((*center).into(), *r, mat(material))) as &'static dyn Hittable
+            }
 
             Self::UvSphere {
                 center,
@@ -319,7 +330,7 @@ impl HittableSpec {
                 n_lon,
                 material,
             } => SphereMesh::uv_sphere((*center).into(), *r, *n_lat, *n_lon, mat(material))
-                .into_mesh(),
+                .into_dyn_hittable(),
 
             Self::IcoSphere {
                 center,
@@ -327,7 +338,7 @@ impl HittableSpec {
                 subdivisions,
                 material,
             } => SphereMesh::icosphere((*center).into(), *r, *subdivisions, mat(material))
-                .into_mesh(),
+                .into_dyn_hittable(),
 
             Self::NoiseSphere {
                 center,
@@ -346,20 +357,30 @@ impl HittableSpec {
                 *noise_depth,
                 mat(material),
             )
-            .into_mesh(),
+            .into_dyn_hittable(),
 
             Self::Box {
                 vert1,
                 vert2,
                 material,
-            } => cuboid((*vert1).into(), (*vert2).into(), mat(material)),
+            } => leak_ptr!(cuboid((*vert1).into(), (*vert2).into(), mat(material))),
 
             Self::Quad { q, u, v, material } => {
-                Quad::new((*q).into(), (*u).into(), (*v).into(), mat(material)).into()
+                leak_ptr!(Quad::new(
+                    (*q).into(),
+                    (*u).into(),
+                    (*v).into(),
+                    mat(material)
+                ))
             }
 
             Self::Triangle { a, b, c, material } => {
-                Triangle::new((*a).into(), (*b).into(), (*c).into(), mat(material)).into()
+                leak_ptr!(Triangle::new(
+                    (*a).into(),
+                    (*b).into(),
+                    (*c).into(),
+                    mat(material)
+                ))
             }
         }
     }
@@ -452,7 +473,7 @@ impl Scene {
         Some(toml::from_str(content).unwrap())
     }
 
-    pub fn load_scene(&self, rng: &mut Rng) -> (Vec<Hittable>, Camera) {
+    pub fn load_scene(&self, rng: &mut Rng) -> (Vec<&'static dyn Hittable>, Camera) {
         let mut hittables = Vec::new();
         let materials: HashMap<String, &'static dyn Material> = self
             .materials
@@ -461,7 +482,7 @@ impl Scene {
             .collect();
 
         for mesh in self.meshes.iter() {
-            hittables.push(mesh.as_hittable(
+            hittables.push(mesh.as_dyn_hittable(
                 &materials,
                 &self.materials,
                 self.as_points,
@@ -470,7 +491,7 @@ impl Scene {
         }
 
         for obj in self.objects.clone().into_iter() {
-            hittables.push(obj.as_hittable(&materials, &self.materials));
+            hittables.push(obj.as_dyn_hittable(&materials, &self.materials));
         }
 
         let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);

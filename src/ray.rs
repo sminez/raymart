@@ -223,10 +223,11 @@ impl Camera {
         let mut stack = [(0, 0.0); MAX_BVH_DEPTH];
 
         for _ in 0..self.max_bounces {
-            let hr = match bvh.hits(r_in, Interval::new(0.001, f32::INFINITY), &mut stack) {
-                Some(hr) => hr,
-                None => return radiance + beta * self.bg,
-            };
+            let hr =
+                match bvh.hits_with_stack(r_in, Interval::new(0.001, f32::INFINITY), &mut stack) {
+                    Some(hr) => hr,
+                    None => return radiance + beta * self.bg,
+                };
 
             radiance += beta * hr.mat.color_emitted(&hr);
 

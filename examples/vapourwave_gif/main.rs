@@ -97,13 +97,13 @@ fn render_frame(
     i: usize,
     n_frames: usize,
     mut berg: SphereMesh,
-    mut hittables: Vec<Hittable>,
+    mut hittables: Vec<&'static dyn Hittable>,
     camera: &Camera,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,
 ) -> (bool, Vec<Color>) {
     berg.rotate_vertices_y(i as f32 * 360.0 / n_frames as f32);
-    hittables.push(berg.into_mesh());
+    hittables.push(berg.into_dyn_hittable());
 
     eprintln!("\nComputing bvh tree...");
     let bvh_tree = Bvh::new(hittables);
@@ -115,7 +115,7 @@ fn render_frame(
 fn render_gif(
     n_frames: usize,
     berg: SphereMesh,
-    hittables: Vec<Hittable>,
+    hittables: Vec<&'static dyn Hittable>,
     camera: &Camera,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,

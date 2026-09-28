@@ -1,4 +1,9 @@
-use crate::{bvh::AABBox, hit::Interval, material::Material, HitRecord, Ray, P3, V3};
+use crate::{
+    bvh::AABBox,
+    hit::{Hittable, Interval},
+    material::Material,
+    HitRecord, Ray, P3, V3,
+};
 use std::f32::consts::PI;
 
 const INV_PI: f32 = 1.0 / PI;
@@ -27,10 +32,16 @@ impl Sphere {
             bbox,
         }
     }
+}
+
+impl Hittable for Sphere {
+    fn bounding_box(&self) -> AABBox {
+        self.bbox
+    }
 
     /// The derivation of the calculation here is given in section 5 of Ray tracing in one weekend
     /// https://raytracing.github.io/books/RayTracingInOneWeekend.html
-    pub fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+    fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         let oc = self.center - r.orig;
 
         let a = r.dir.length_squared();
