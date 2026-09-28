@@ -1,4 +1,5 @@
-use raymart::{color, sdl::MainThreadState, Backend, Bvh, Scene, SCENE_PATH};
+use rand::SeedableRng;
+use raymart::{color, sdl::MainThreadState, Backend, Bvh, Rng, Scene, SCENE_PATH};
 use sdl2::{event::Event, keyboard::Keycode};
 use std::{env, fs};
 
@@ -7,7 +8,8 @@ fn main() -> anyhow::Result<()> {
     eprintln!("scene = {path}");
 
     let s = Scene::try_from_file(&path).unwrap_or_default();
-    let (hittables, camera) = s.load_scene();
+    let mut rng = Rng::seed_from_u64(0);
+    let (hittables, camera) = s.load_scene(&mut rng);
 
     eprintln!("Computing bvh tree...");
     let bvh_tree = Bvh::new(hittables);

@@ -15,12 +15,12 @@ pub struct Quad {
     w: V3,
     normal: V3,
     d: f32,
-    mat: &'static Material,
+    mat: &'static dyn Material,
     pub bbox: AABBox,
 }
 
 impl Quad {
-    pub fn new(q: P3, u: V3, v: V3, mat: &'static Material) -> Quad {
+    pub fn new(q: P3, u: V3, v: V3, mat: &'static dyn Material) -> Quad {
         let diag1 = AABBox::new_from_points(q, q + u + v);
         let diag2 = AABBox::new_from_points(q + u, q + v);
         let bbox = AABBox::new_enclosing(diag1, diag2);
@@ -75,7 +75,7 @@ impl Quad {
 }
 
 /// Construct a closed cuboid containing the two provided opposite vertices: a, b.
-pub fn cuboid(a: P3, b: P3, mat: &'static Material) -> Hittable {
+pub fn cuboid(a: P3, b: P3, mat: &'static dyn Material) -> Hittable {
     let mut sides = HittableList::default();
     let min = a.min(b);
     let max = a.max(b);

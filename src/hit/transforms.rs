@@ -1,7 +1,8 @@
 use crate::{
     bvh::AABBox,
     hit::{Hittable, Interval},
-    material::{Material, Texture},
+    material::{Isotropic, Material},
+    texture::{SolidColor, Texture},
     Color, HitRecord, Ray, P3, V3,
 };
 use glam::Mat3;
@@ -9,23 +10,31 @@ use rand::random_range;
 
 #[derive(Debug, Clone)]
 pub struct ConstantMedium {
-    boundary: &'static Hittable,
+    boundary: Box<Hittable>,
     neg_inv_density: f32,
-    phase_func: &'static Material,
+    phase_func: &'static dyn Material,
 }
 
 impl ConstantMedium {
-    pub fn new(boundary: Hittable, density: f32, color: Color) -> ConstantMedium {
-        Self::new_with_texture(boundary, density, Texture::solid(color))
+    pub fn new(boundary: Hittable, density: f32, albedo: Color) -> ConstantMedium {
+        Self::new_with_texture(
+            boundary,
+            density,
+            Box::leak(Box::new(SolidColor::new(albedo))),
+        )
     }
 
-    pub fn new_with_texture(boundary: Hittable, density: f32, texture: Texture) -> ConstantMedium {
+    pub fn new_with_texture(
+        boundary: Hittable,
+        density: f32,
+        texture: &'static dyn Texture,
+    ) -> ConstantMedium {
         let neg_inv_density = -1.0 / density;
 
         Self {
-            boundary: Box::leak(Box::new(boundary)),
+            boundary: Box::new(boundary),
             neg_inv_density,
-            phase_func: Box::leak(Box::new(Material::isotropic_texture(texture))),
+            phase_func: Isotropic::new_mat(texture),
         }
     }
 

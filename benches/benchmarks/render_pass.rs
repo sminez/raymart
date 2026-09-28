@@ -1,5 +1,6 @@
 use criterion::{criterion_group, measurement::WallTime, BenchmarkGroup, Criterion};
-use raymart::{Bvh, Color, Scene};
+use rand::SeedableRng;
+use raymart::{Bvh, Color, Rng, Scene};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("Render pass");
@@ -25,7 +26,8 @@ fn criterion_benchmark(c: &mut Criterion) {
 
 fn scene_render_pass(title: &str, scene: &str, group: &mut BenchmarkGroup<'_, WallTime>) {
     let s = Scene::try_from_str(scene).unwrap();
-    let (hittables, camera) = s.load_scene();
+    let mut rng = Rng::seed_from_u64(0);
+    let (hittables, camera) = s.load_scene(&mut rng);
     let bvh = Bvh::new(hittables);
     let (w, h) = camera.dims();
 

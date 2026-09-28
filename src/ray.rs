@@ -218,33 +218,41 @@ impl Camera {
     }
 
     fn ray_color(&self, r_in: &mut Ray, r_out: &mut Ray, bvh: &Bvh, rng: &mut Rng) -> Color {
-        let mut incoming_light = color::BLACK;
-        let mut rcolor = color::WHITE;
+        let mut radiance = color::BLACK;
+        let mut beta = color::WHITE;
         let mut stack = [(0, 0.0); MAX_BVH_DEPTH];
+        let mut pdf_value = 0.0;
 
         for _ in 0..self.max_bounces {
             let hr = match bvh.hits(r_in, Interval::new(0.001, f32::INFINITY), &mut stack) {
                 Some(hr) => hr,
-                None => return rcolor * self.bg,
+                None => return radiance + beta * self.bg,
             };
 
-            let emitted_light = hr.mat.color_emitted(&hr);
-            incoming_light += emitted_light * rcolor;
+            radiance += beta * hr.mat.color_emitted(&hr);
 
-            match hr.mat.scatter(r_in, r_out, &hr, rng) {
-                Some(attenuation) => {
-                    rcolor *= attenuation;
-                    mem::swap(r_in, r_out);
-                }
+            let attenuation = match hr.mat.scatter(r_in, r_out, &hr, &mut pdf_value, rng) {
+                Some(attenuation) => attenuation,
                 None => break,
             };
 
-            if (rcolor.x + rcolor.y + rcolor.z) < 0.0001 {
+            let scattering_pdf = hr.mat.scattering_pdf(r_in, r_out, &hr);
+            let pdf_value = scattering_pdf;
+
+            if pdf_value <= 0.0 {
+                break;
+            }
+
+            beta *= attenuation * scattering_pdf / pdf_value;
+
+            if (beta.x + beta.y + beta.z) < 0.0001 {
                 break; // early exit if we can't contribute more light from here
             }
+
+            mem::swap(r_in, r_out);
         }
 
-        incoming_light
+        radiance
     }
 }
 

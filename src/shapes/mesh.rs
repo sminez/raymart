@@ -7,7 +7,7 @@ pub struct SphereMesh {
     radius: f32,
     directions: Vec<P3>,
     triangles: Vec<[usize; 3]>,
-    mat: &'static Material,
+    mat: &'static dyn Material,
 }
 
 impl SphereMesh {
@@ -16,7 +16,7 @@ impl SphereMesh {
         radius: f32,
         directions: Vec<V3>,
         triangles: Vec<[usize; 3]>,
-        mat: &'static Material,
+        mat: &'static dyn Material,
     ) -> Self {
         let radius = radius.max(0.0);
 
@@ -90,7 +90,7 @@ impl SphereMesh {
         radius: f32,
         n_lat: usize,
         n_lon: usize,
-        mat: &'static Material,
+        mat: &'static dyn Material,
     ) -> Self {
         let mut directions = Vec::with_capacity(2 + (n_lat - 1) * n_lon);
         let mut triangles = Vec::new();
@@ -155,7 +155,12 @@ impl SphereMesh {
     ///
     /// Directions are computed on the unit sphere and then later mapped to the correct vertices
     /// using the provided center and radius
-    pub fn icosphere(center: P3, radius: f32, subdivisions: usize, mat: &'static Material) -> Self {
+    pub fn icosphere(
+        center: P3,
+        radius: f32,
+        subdivisions: usize,
+        mat: &'static dyn Material,
+    ) -> Self {
         let mut mesh = TriangleMesh::unit_icosahedron();
         mesh.subdivide(subdivisions);
 
@@ -169,7 +174,7 @@ impl SphereMesh {
         subtract: bool,
         frac_inv: f32,
         noise_depth: usize,
-        mat: &'static Material,
+        mat: &'static dyn Material,
     ) -> Self {
         Self::noise_sphere_with_source(
             center,
@@ -191,7 +196,7 @@ impl SphereMesh {
         subtract: bool,
         frac_inv: f32,
         noise_depth: usize,
-        mat: &'static Material,
+        mat: &'static dyn Material,
         source: &Perlin<256>,
     ) -> Self {
         let mut mesh = TriangleMesh::unit_icosahedron();
@@ -324,7 +329,7 @@ impl TriangleMesh {
     }
 }
 
-fn try_triangle(center: P3, a: P3, b: P3, c: P3, mat: &'static Material) -> Option<Triangle> {
+fn try_triangle(center: P3, a: P3, b: P3, c: P3, mat: &'static dyn Material) -> Option<Triangle> {
     let normal = (b - a).cross(c - a);
     if normal.length_squared() < 1e-12 {
         return None;

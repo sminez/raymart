@@ -9,6 +9,7 @@ pub mod ray;
 pub mod scene;
 pub mod sdl;
 pub mod shapes;
+pub mod texture;
 pub mod v3;
 
 pub use bvh::Bvh;
@@ -39,5 +40,12 @@ macro_rules! p {
 macro_rules! v {
     ($x:expr, $y:expr, $z:expr) => {
         V3::new($x as f32, $y as f32, $z as f32)
+    };
+}
+
+#[macro_export]
+macro_rules! leak_ptr {
+    ($val:expr) => {
+        Box::leak(Box::new($val))
     };
 }

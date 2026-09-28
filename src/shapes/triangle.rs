@@ -7,12 +7,12 @@ pub struct Triangle {
     ac: V3,
     normal: V3,
     unit_normal: V3,
-    mat: &'static Material,
+    mat: &'static dyn Material,
     pub bbox: AABBox,
 }
 
 impl Triangle {
-    pub fn new(a: P3, b: P3, c: P3, mat: &'static Material) -> Triangle {
+    pub fn new(a: P3, b: P3, c: P3, mat: &'static dyn Material) -> Triangle {
         let bbox1 = AABBox::new_from_points(a, b);
         let bbox2 = AABBox::new_from_points(a, c);
         let ab = b - a;

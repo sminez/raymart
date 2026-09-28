@@ -2,15 +2,11 @@
 use crate::Rng;
 pub use glam::Vec3 as V3;
 use rand::RngExt;
+use std::f32::consts::PI;
 
 pub type P3 = V3;
 
 const NEAR_ZERO: f32 = 1e-8;
-pub const ORIGIN: V3 = V3::new(0.0, 0.0, 0.0);
-
-pub const fn new(x: f32, y: f32, z: f32) -> V3 {
-    V3 { x, y, z }
-}
 
 pub fn random(min: f32, max: f32, rng: &mut Rng) -> V3 {
     V3::new(
@@ -39,6 +35,15 @@ pub fn random_on_hemisphere(normal: V3, rng: &mut Rng) -> V3 {
     }
 }
 
+pub fn random_cosine_direction(rng: &mut Rng) -> V3 {
+    let (r1, r2): (f32, f32) = rng.random();
+    let phi = 2.0 * PI * r1;
+    let sqrt_r2 = r2.sqrt();
+    let (sin_phi, cos_phi) = phi.sin_cos();
+
+    V3::new(cos_phi * sqrt_r2, sin_phi * sqrt_r2, (1.0 - r2).sqrt())
+}
+
 pub fn random_in_unit_disk(rng: &mut Rng) -> V3 {
     loop {
         let p = V3::new(
@@ -54,4 +59,25 @@ pub fn random_in_unit_disk(rng: &mut Rng) -> V3 {
 
 pub fn near_zero(v: &V3) -> bool {
     v.abs().max_element() < NEAR_ZERO
+}
+
+/// Orthonormal basis
+pub struct Onb {
+    pub u: V3,
+    pub v: V3,
+    pub w: V3,
+}
+
+impl Onb {
+    pub fn new(normal: V3) -> Self {
+        let w = normal.normalize();
+        // TODO: check that these are the right way round for a LH basis
+        let (u, v) = w.any_orthonormal_pair();
+
+        Self { u, v, w }
+    }
+
+    pub fn transform(&self, v: V3) -> V3 {
+        v.x * self.u + v.y * self.v + v.z * self.w
+    }
 }

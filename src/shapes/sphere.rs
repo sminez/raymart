@@ -9,12 +9,12 @@ pub struct Sphere {
     center: P3,
     inv_radius: f32,
     radius_sq: f32,
-    mat: &'static Material,
+    mat: &'static dyn Material,
     pub bbox: AABBox,
 }
 
 impl Sphere {
-    pub fn new(center: P3, radius: f32, mat: &'static Material) -> Self {
+    pub fn new(center: P3, radius: f32, mat: &'static dyn Material) -> Self {
         let r = radius.max(0.0);
         let rvec = V3::splat(r);
         let bbox = AABBox::new_from_points(center - rvec, center + rvec);

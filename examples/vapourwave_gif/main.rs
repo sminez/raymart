@@ -1,7 +1,7 @@
 use gif::{Encoder, Frame, Repeat};
 use rand::SeedableRng;
 use raymart::{
-    color, hit::Hittable, material::Material, noise::Perlin, ray::Camera, sdl::MainThreadState,
+    color, hit::Hittable, material::Specular, noise::Perlin, ray::Camera, sdl::MainThreadState,
     shapes::SphereMesh, Backend, Bvh, Color, Rng, Scene, P3,
 };
 use sdl2::{event::Event, keyboard::Keycode};
@@ -48,17 +48,12 @@ fn main() -> anyhow::Result<()> {
     let noise: Perlin<256> = Perlin::new(&mut rng);
 
     // Create our iceberg and wrap it in a Rotate so we can turn it each frame
-    let mat = Box::leak(Box::new(Material::Specular {
-        albedo: Color::new(0.7, 0.55, 0.4),
-        spec_albedo: Color::splat(0.5),
-        smoothness: 0.1,
-        prob: 0.06,
-    }));
+    let mat = Specular::new_mat(Color::new(0.7, 0.55, 0.4), Color::splat(0.5), 0.1, 0.06);
     let berg = SphereMesh::noise_sphere_with_source(p, r, 7, false, 2.0, 9, mat, &noise);
 
     // Init the rest of the scene and camera
     let s = Scene::try_from_file(SCENE).unwrap();
-    let (hittables, camera) = s.load_scene();
+    let (hittables, camera) = s.load_scene(&mut rng);
     let (w, h) = camera.dims();
     let (mut mts, canvas) = MainThreadState::init(w, h)?;
     let tc = canvas.texture_creator();

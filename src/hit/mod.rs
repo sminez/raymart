@@ -165,13 +165,13 @@ impl Add<Interval> for f32 {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct HitRecord {
     pub t: f32,
     pub p: P3,
     pub normal: V3,
     pub front_face: bool,
-    pub mat: &'static Material,
+    pub mat: &'static dyn Material,
     pub u: f32,
     pub v: f32,
 }
@@ -182,7 +182,7 @@ impl HitRecord {
         p: P3,
         outward_normal: V3,
         r: &Ray,
-        mat: &'static Material,
+        mat: &'static dyn Material,
         u: f32,
         v: f32,
     ) -> Self {

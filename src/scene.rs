@@ -4,14 +4,13 @@
 use crate::{
     bvh::Bvh,
     hit::{transforms::ConstantMedium, Hittable},
-    material::{Material, Texture},
+    material::{Dielectric, DiffuseLight, Isotropic, Lambertian, Material, Metal, Specular},
     p,
     ray::Camera,
     shapes::{cuboid, Quad, Sphere, SphereMesh, Triangle},
     v, Color, Rng, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, STEP_SIZE, V3,
 };
 use glam::Mat3;
-use rand::SeedableRng;
 use serde::Deserialize;
 use std::{collections::HashMap, fs};
 use tobj::{load_obj, GPU_LOAD_OPTIONS};
@@ -76,10 +75,6 @@ pub enum MatSpec {
         #[serde(default)]
         color: Option<ColorSpec>,
     },
-    NoiseLight {
-        scale: f32,
-        color: ColorSpec,
-    },
     Image {
         path: String,
     },
@@ -95,42 +90,27 @@ impl MatSpec {
             _ => panic!("no color associated with material"),
         }
     }
-}
 
-impl From<&MatSpec> for Material {
-    fn from(m: &MatSpec) -> Self {
-        match m {
-            MatSpec::Solid { color } => Material::solid_color(color.into()),
+    fn as_material(&self, rng: &mut Rng) -> &'static dyn Material {
+        match self {
+            MatSpec::Solid { color } => Lambertian::solid_color(color),
             MatSpec::Specular {
                 color,
                 spec_color,
                 smoothness,
                 spec_prob,
-            } => Material::Specular {
-                albedo: color.into(),
-                spec_albedo: spec_color.into(),
-                smoothness: *smoothness,
-                prob: *spec_prob,
-            },
-            MatSpec::Checker { scale, odd, even } => {
-                Material::checker(*scale, odd.into(), even.into())
+            } => Specular::new_mat(color, spec_color, *smoothness, *spec_prob),
+            MatSpec::Checker { scale, odd, even } => Lambertian::checker(*scale, odd, even),
+            MatSpec::Metal { color, fuzz } => Metal::new_mat(color, *fuzz),
+            MatSpec::Dielectric { ref_index, color } => {
+                Dielectric::new_mat(color.as_ref().unwrap_or(&ColorSpec::Grey(1.0)), *ref_index)
             }
-            MatSpec::Metal { color, fuzz } => Material::metal(color.into(), *fuzz),
-            MatSpec::Dielectric { ref_index, color } => Material::dielectric(
-                *ref_index,
-                color.as_ref().unwrap_or(&ColorSpec::Grey(1.0)).into(),
-            ),
-            MatSpec::Isotropic { color } => Material::isotropic(color.into()),
-            MatSpec::Light { color } => Material::diffuse_light(color.into()),
-            MatSpec::Noise { scale, color } => Material::noise(
-                *scale,
-                color.as_ref().unwrap_or(&ColorSpec::Grey(0.5)).into(),
-                &mut Rng::seed_from_u64(0),
-            ),
-            MatSpec::NoiseLight { scale, color } => Material::diffuse_light_texture(
-                Texture::noise(*scale, color.into(), &mut Rng::seed_from_u64(0)),
-            ),
-            MatSpec::Image { path } => Material::image(path),
+            MatSpec::Isotropic { color } => Isotropic::new_color(color),
+            MatSpec::Light { color } => DiffuseLight::new_color(color),
+            MatSpec::Noise { scale, color } => {
+                Lambertian::noise(*scale, color.as_ref().unwrap_or(&ColorSpec::Grey(0.5)), rng)
+            }
+            MatSpec::Image { path } => Lambertian::image(path),
         }
     }
 }
@@ -162,7 +142,7 @@ impl Mesh {
 
     fn as_hittable(
         &self,
-        mats: &HashMap<String, &'static Material>,
+        mats: &HashMap<String, &'static dyn Material>,
         mat_specs: &HashMap<String, MatSpec>,
         as_points: bool,
         point_radius: f32,
@@ -236,7 +216,7 @@ pub struct ObjSpec {
 impl ObjSpec {
     fn as_hittable(
         &self,
-        mats: &HashMap<String, &'static Material>,
+        mats: &HashMap<String, &'static dyn Material>,
         mat_specs: &HashMap<String, MatSpec>,
     ) -> Hittable {
         let mut h = self.hittable.as_hittable(mats);
@@ -318,9 +298,10 @@ impl HittableSpec {
         mat.as_color()
     }
 
-    fn as_hittable(&self, mats: &HashMap<String, &'static Material>) -> Hittable {
+    fn as_hittable(&self, mats: &HashMap<String, &'static dyn Material>) -> Hittable {
         let mat = |material: &str| {
-            mats.get(material)
+            *mats
+                .get(material)
                 .unwrap_or_else(|| panic!("unknown material: {material}"))
         };
 
@@ -471,12 +452,12 @@ impl Scene {
         Some(toml::from_str(content).unwrap())
     }
 
-    pub fn load_scene(&self) -> (Vec<Hittable>, Camera) {
+    pub fn load_scene(&self, rng: &mut Rng) -> (Vec<Hittable>, Camera) {
         let mut hittables = Vec::new();
-        let materials: HashMap<String, &'static Material> = self
+        let materials: HashMap<String, &'static dyn Material> = self
             .materials
             .iter()
-            .map(|(k, v)| (k.clone(), Box::leak(Box::new(v.into())) as &'static _))
+            .map(|(k, v)| (k.clone(), v.as_material(rng)))
             .collect();
 
         for mesh in self.meshes.iter() {
