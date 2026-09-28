@@ -62,6 +62,7 @@ pub fn near_zero(v: &V3) -> bool {
 }
 
 /// Orthonormal basis
+#[derive(Debug, Clone, Copy)]
 pub struct Onb {
     pub u: V3,
     pub v: V3,

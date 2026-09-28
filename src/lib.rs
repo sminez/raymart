@@ -5,6 +5,7 @@ pub mod color;
 pub mod hit;
 pub mod material;
 pub mod noise;
+pub mod pdf;
 pub mod ray;
 pub mod scene;
 pub mod sdl;
