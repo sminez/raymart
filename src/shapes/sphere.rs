@@ -2,7 +2,8 @@ use crate::{
     bvh::AABBox,
     hit::{Hittable, Interval},
     material::Material,
-    HitRecord, Ray, P3, V3,
+    v3::{random_on_sphere, Onb},
+    HitRecord, Ray, Rng, P3, V3,
 };
 use std::f32::consts::PI;
 
@@ -77,5 +78,27 @@ impl Hittable for Sphere {
         };
 
         Some(HitRecord::new(root, p, outward_normal, r, self.mat, u, v))
+    }
+
+    fn pdf_value(&self, origin: P3, dir: V3) -> f32 {
+        if self
+            .hits(&Ray::new(origin, dir), Interval::TO_INFINITY)
+            .is_none()
+        {
+            return 0.0;
+        }
+
+        let d_sq = (self.center - origin).length_squared();
+        let cos_theta_max = (1.0 - self.radius_sq / d_sq).sqrt();
+        let solid_angle = 2.0 * PI * (1.0 - cos_theta_max);
+
+        1.0 / solid_angle
+    }
+
+    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
+        let d = self.center - origin;
+        let d_sq = d.length_squared();
+
+        Onb::new(d).transform(random_on_sphere(self.radius_sq, d_sq, rng))
     }
 }

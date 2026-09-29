@@ -2,7 +2,8 @@ use crate::{
     bvh::{Bvh, MAX_BVH_DEPTH},
     color,
     hit::{HittableList, Interval},
-    pdf::{HittablePdf, Pdf},
+    material::ScatterRecord,
+    pdf::{HittablePdf, MixturePdf, Pdf},
     sdl::MainThreadState,
     v3, Backend, Color, Rng, P3, V3,
 };
@@ -228,9 +229,9 @@ impl Camera {
     fn ray_color(
         &self,
         r_in: &mut Ray,
-        r_out: &mut Ray,
+        scattered: &mut Ray,
         bvh: &Bvh,
-        _lights: &'static HittableList,
+        lights: &'static HittableList,
         rng: &mut Rng,
     ) -> Color {
         let mut radiance = color::BLACK;
@@ -245,18 +246,36 @@ impl Camera {
 
             radiance += beta * hr.mat.color_emitted(&hr);
 
-            let attenuation = match hr.mat.scatter(r_in, r_out, &hr, rng) {
-                Some(attenuation) => attenuation,
+            let (attenuation, scatter_pdf) = match hr.mat.scatter(r_in, &hr, rng) {
+                Some(ScatterRecord::Pdf { attenuation, pdf }) => (attenuation, pdf),
+                Some(ScatterRecord::Skip {
+                    attenuation,
+                    mut ray,
+                }) => {
+                    beta *= attenuation;
+                    mem::swap(r_in, &mut ray);
+                    continue;
+                }
                 None => break,
             };
 
-            beta *= attenuation; // * scattering_pdf / pdf_value;
+            let light_pdf = HittablePdf::new(lights, hr.p);
+            let pdf = MixturePdf {
+                p1: Box::new(light_pdf),
+                p2: scatter_pdf,
+            };
+
+            *scattered = Ray::new(hr.p, pdf.generate(rng));
+            let pdf_value = pdf.value(scattered.dir);
+            let scattering_pdf = hr.mat.scattering_pdf(r_in, scattered, &hr);
+
+            beta *= attenuation * scattering_pdf / pdf_value;
 
             if (beta.x + beta.y + beta.z) < 0.0001 {
                 break; // early exit if we can't contribute more light from here
             }
 
-            mem::swap(r_in, r_out);
+            mem::swap(r_in, scattered);
         }
 
         radiance

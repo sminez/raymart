@@ -1,4 +1,8 @@
-use crate::{color, leak_ptr, material::Material, v3, Color, HitRecord, Ray, Rng};
+use crate::{
+    color, leak_ptr,
+    material::{Material, ScatterRecord},
+    v3, Color, HitRecord, Ray, Rng,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Metal {
@@ -30,15 +34,20 @@ impl Material for Metal {
         0.0
     }
 
-    fn scatter(&self, r_in: &Ray, r_out: &mut Ray, hr: &HitRecord, rng: &mut Rng) -> Option<Color> {
+    fn scatter(&self, r_in: &Ray, hr: &HitRecord, rng: &mut Rng) -> Option<ScatterRecord> {
         let reflected =
             r_in.dir.reflect(hr.normal).normalize() + (self.fuzz * v3::random_unit_vector(rng));
-        r_out.set(hr.p, reflected);
 
-        if r_out.dir.dot(hr.normal) > 0.0 {
-            Some(self.albedo)
-        } else {
-            None
-        }
+        // r_out.set(hr.p, reflected);
+        // if r_out.dir.dot(hr.normal) > 0.0 {
+        //     Some(self.albedo)
+        // } else {
+        //     None
+        // }
+
+        Some(ScatterRecord::Skip {
+            attenuation: self.albedo,
+            ray: Ray::new(hr.p, reflected),
+        })
     }
 }

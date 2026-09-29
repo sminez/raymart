@@ -1,6 +1,6 @@
 use crate::{
     color, leak_ptr,
-    material::Material,
+    material::{Material, ScatterRecord},
     texture::{SolidColor, Texture},
     Color, HitRecord, Ray, Rng,
 };
@@ -37,13 +37,7 @@ impl Material for DiffuseLight {
         0.0
     }
 
-    fn scatter(
-        &self,
-        _r_in: &Ray,
-        _r_out: &mut Ray,
-        _hr: &HitRecord,
-        _rng: &mut Rng,
-    ) -> Option<Color> {
+    fn scatter(&self, _r_in: &Ray, _hr: &HitRecord, _rng: &mut Rng) -> Option<ScatterRecord> {
         None
     }
 }

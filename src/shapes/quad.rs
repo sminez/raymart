@@ -3,8 +3,9 @@ use crate::{
     hit::{Hittable, HittableList, Interval},
     leak_ptr,
     material::Material,
-    HitRecord, Ray, P3, V3,
+    HitRecord, Ray, Rng, P3, V3,
 };
+use rand::RngExt;
 
 /// An oriented 2D quadilateral that can optionally be set to return some subregion
 /// rather than the entire surface.
@@ -17,7 +18,8 @@ pub struct Quad {
     normal: V3,
     d: f32,
     mat: &'static dyn Material,
-    pub bbox: AABBox,
+    bbox: AABBox,
+    area: f32,
 }
 
 impl Quad {
@@ -40,6 +42,7 @@ impl Quad {
             d,
             mat,
             bbox,
+            area: n.length(),
         }
     }
 }
@@ -78,6 +81,25 @@ impl Hittable for Quad {
             alpha,
             beta,
         ))
+    }
+
+    fn pdf_value(&self, origin: P3, dir: V3) -> f32 {
+        let hr = match self.hits(&Ray::new(origin, dir), Interval::TO_INFINITY) {
+            Some(hr) => hr,
+            None => return 0.0,
+        };
+
+        let d_sq = dir.length_squared();
+        let cosine = (dir.dot(hr.normal) / d_sq.sqrt()).abs();
+
+        hr.t.powi(2) / (cosine * self.area)
+    }
+
+    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
+        let (w1, w2): (f32, f32) = rng.random();
+        let p = self.q + (w1 * self.u) + (w2 * self.v);
+
+        p - origin
     }
 }
 

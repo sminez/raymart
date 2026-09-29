@@ -1,9 +1,8 @@
-use rand::SeedableRng;
-
 use crate::{
     bvh::Bvh, hit::Hittable, leak_ptr, material::Material, noise::Perlin, shapes::Triangle, Rng,
     P3, V3,
 };
+use rand::SeedableRng;
 use std::{
     collections::HashMap,
     f32::consts::PI,

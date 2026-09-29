@@ -1,8 +1,8 @@
 use crate::{
     color, leak_ptr,
-    material::Material,
+    material::{Material, ScatterRecord},
+    pdf::CosinePdf,
     texture::{Checker, Image, PerlinNoise, SolidColor, Texture},
-    v3::{self, random_cosine_direction, Onb},
     Color, HitRecord, Ray, Rng,
 };
 use std::f32::consts::FRAC_1_PI;
@@ -65,24 +65,10 @@ impl Material for Lambertian {
         }
     }
 
-    fn scatter(
-        &self,
-        _r_in: &Ray,
-        r_out: &mut Ray,
-        hr: &HitRecord,
-        rng: &mut Rng,
-    ) -> Option<Color> {
-        let onb = Onb::new(hr.normal);
-        let mut scatter_direction = onb.transform(random_cosine_direction(rng));
-        if v3::near_zero(&scatter_direction) {
-            scatter_direction = hr.normal;
-        }
-        let attenuation = self.texture.value(hr.u, hr.v, hr.p);
-        let dir = scatter_direction.normalize();
-
-        r_out.set(hr.p, dir);
-        // *pdf = onb.w.dot(dir) * FRAC_1_PI;
-
-        Some(attenuation)
+    fn scatter(&self, _r_in: &Ray, hr: &HitRecord, _rng: &mut Rng) -> Option<ScatterRecord> {
+        Some(ScatterRecord::Pdf {
+            attenuation: self.texture.value(hr.u, hr.v, hr.p),
+            pdf: Box::new(CosinePdf::new(hr.normal)),
+        })
     }
 }

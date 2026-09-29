@@ -3,7 +3,7 @@ use crate::{
     hit::{Hittable, Interval},
     material::{Isotropic, Material},
     texture::{SolidColor, Texture},
-    Color, HitRecord, Ray, P3, V3,
+    Color, HitRecord, Ray, Rng, P3, V3,
 };
 use glam::Mat3;
 use rand::random_range;
@@ -70,6 +70,14 @@ impl Hittable for ConstantMedium {
 
         Some(HitRecord::new(t, r.at(t), normal, r, self.phase_func, u, v))
     }
+
+    fn pdf_value(&self, origin: P3, dir: V3) -> f32 {
+        self.boundary.pdf_value(origin, dir)
+    }
+
+    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
+        self.boundary.random_dir(origin, rng)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -106,6 +114,14 @@ impl Hittable for Translate {
         hr.p += self.offset;
 
         Some(hr)
+    }
+
+    fn pdf_value(&self, origin: P3, dir: V3) -> f32 {
+        self.inner.pdf_value(origin - self.offset, dir)
+    }
+
+    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
+        self.inner.random_dir(origin - self.offset, rng)
     }
 }
 
@@ -163,5 +179,14 @@ impl Hittable for Rotate {
         hr.normal = self.to_world * hr.normal;
 
         Some(hr)
+    }
+
+    fn pdf_value(&self, origin: P3, dir: V3) -> f32 {
+        self.inner
+            .pdf_value(self.to_obj * origin, self.to_obj * dir)
+    }
+
+    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
+        self.to_world * self.inner.random_dir(self.to_obj * origin, rng)
     }
 }

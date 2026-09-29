@@ -1,4 +1,5 @@
 use crate::{bvh::AABBox, material::Material, Ray, Rng, P3, V3};
+use rand::RngExt;
 use std::{fmt, ops::Add};
 
 pub mod transforms;
@@ -6,16 +7,8 @@ pub mod transforms;
 pub trait Hittable: fmt::Debug + Send + Sync {
     fn bounding_box(&self) -> AABBox;
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
-
-    #[expect(unused_variables)]
-    fn pdf_value(&self, origin: P3, dir: V3) -> f32 {
-        0.0
-    }
-
-    #[expect(unused_variables)]
-    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
-        V3::X
-    }
+    fn pdf_value(&self, origin: P3, dir: V3) -> f32;
+    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -93,7 +86,7 @@ impl Add<Interval> for f32 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct HitRecord {
     pub t: f32,
     pub p: P3,
@@ -149,12 +142,14 @@ impl HitRecord {
 pub struct HittableList {
     objects: Vec<&'static dyn Hittable>,
     bbox: AABBox,
+    inv_len: f32,
 }
 
 impl HittableList {
     pub fn add(&mut self, obj: &'static dyn Hittable) {
         self.bbox = AABBox::new_enclosing(self.bbox, obj.bounding_box());
         self.objects.push(obj);
+        self.inv_len = 1.0 / self.objects.len() as f32;
     }
 }
 
@@ -174,6 +169,19 @@ impl Hittable for HittableList {
         }
 
         rec
+    }
+
+    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
+        let i = rng.random_range(0..self.objects.len());
+
+        self.objects[i].random_dir(origin, rng)
+    }
+
+    fn pdf_value(&self, origin: P3, dir: V3) -> f32 {
+        self.objects
+            .iter()
+            .fold(0.0, |acc, o| acc + o.pdf_value(origin, dir))
+            * self.inv_len
     }
 }
 

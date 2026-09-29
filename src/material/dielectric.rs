@@ -1,4 +1,8 @@
-use crate::{color, leak_ptr, material::Material, Color, HitRecord, Ray, Rng};
+use crate::{
+    color, leak_ptr,
+    material::{Material, ScatterRecord},
+    Color, HitRecord, Ray, Rng,
+};
 use rand::RngExt;
 
 #[derive(Debug, Clone, Copy)]
@@ -31,7 +35,7 @@ impl Material for Dielectric {
         0.0
     }
 
-    fn scatter(&self, r_in: &Ray, r_out: &mut Ray, hr: &HitRecord, rng: &mut Rng) -> Option<Color> {
+    fn scatter(&self, r_in: &Ray, hr: &HitRecord, rng: &mut Rng) -> Option<ScatterRecord> {
         let ri = if hr.front_face {
             self.inv_ref_index
         } else {
@@ -49,9 +53,13 @@ impl Material for Dielectric {
             unit_dir.refract(hr.normal, ri)
         };
 
-        r_out.set(hr.p, dir);
+        // r_out.set(hr.p, dir);
+        // Some(self.albedo)
 
-        Some(self.albedo)
+        Some(ScatterRecord::Skip {
+            attenuation: self.albedo,
+            ray: Ray::new(hr.p, dir),
+        })
     }
 }
 

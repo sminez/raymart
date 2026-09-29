@@ -1,5 +1,11 @@
-use crate::{color, leak_ptr, material::Material, v3, Color, HitRecord, Ray, Rng};
+use crate::{
+    color, leak_ptr,
+    material::{Material, ScatterRecord},
+    pdf::CosinePdf,
+    v3, Color, HitRecord, Ray, Rng,
+};
 use rand::RngExt;
+use std::f32::consts::FRAC_1_PI;
 
 #[derive(Debug, Clone)]
 pub struct Specular {
@@ -34,25 +40,33 @@ impl Material for Specular {
         color::BLACK
     }
 
-    fn scattering_pdf(&self, _r_in: &Ray, _r_out: &Ray, _hr: &HitRecord) -> f32 {
-        0.0
+    fn scattering_pdf(&self, _r_in: &Ray, r_out: &Ray, hr: &HitRecord) -> f32 {
+        let cos_theta = hr.normal.dot(r_out.dir); // r_out.dir already normalized
+
+        if cos_theta < 0.0 {
+            0.0
+        } else {
+            cos_theta * FRAC_1_PI
+        }
     }
 
-    fn scatter(&self, r_in: &Ray, r_out: &mut Ray, hr: &HitRecord, rng: &mut Rng) -> Option<Color> {
+    fn scatter(&self, r_in: &Ray, hr: &HitRecord, rng: &mut Rng) -> Option<ScatterRecord> {
         let diffuse_dir = hr.normal + v3::random_unit_vector(rng);
         let is_specular = self.prob > rng.random_range(0.0..1.0);
-        let (dir, color) = if is_specular {
+
+        if is_specular {
             let specular_dir = r_in.dir.reflect(hr.normal);
-            (
-                diffuse_dir.lerp(specular_dir, self.smoothness),
-                self.spec_albedo,
-            )
+            let dir = diffuse_dir.lerp(specular_dir, self.smoothness);
+
+            Some(ScatterRecord::Skip {
+                attenuation: self.spec_albedo,
+                ray: Ray::new(hr.p, dir),
+            })
         } else {
-            (diffuse_dir, self.albedo)
-        };
-
-        r_out.set(hr.p, dir);
-
-        Some(color)
+            Some(ScatterRecord::Pdf {
+                attenuation: self.albedo,
+                pdf: Box::new(CosinePdf::new(diffuse_dir)),
+            })
+        }
     }
 }

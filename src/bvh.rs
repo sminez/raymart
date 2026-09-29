@@ -2,7 +2,7 @@
 //! See Section 3 of https://raytracing.github.io/books/RayTracingTheNextWeek.html for the details
 use crate::{
     hit::{HitRecord, Hittable, Interval},
-    Ray, P3, V3,
+    Ray, Rng, P3, V3,
 };
 use std::ops::Add;
 
@@ -352,6 +352,14 @@ impl Hittable for Bvh {
 
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
         self.hits_with_stack(r, ray_t, &mut [(0, 0.0); MAX_BVH_DEPTH])
+    }
+
+    fn random_dir(&self, _origin: V3, _rng: &mut Rng) -> V3 {
+        unimplemented!("Bvh not currently supported as a light source")
+    }
+
+    fn pdf_value(&self, _origin: P3, _dir: V3) -> f32 {
+        unimplemented!("Bvh not currently supported as a light source")
     }
 }
 

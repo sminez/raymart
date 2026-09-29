@@ -1,8 +1,9 @@
 use crate::{
     color, leak_ptr,
-    material::Material,
+    material::{Material, ScatterRecord},
+    pdf::SpherePdf,
     texture::{SolidColor, Texture},
-    v3, Color, HitRecord, Ray, Rng,
+    Color, HitRecord, Ray, Rng,
 };
 use std::f32::consts::PI;
 
@@ -36,17 +37,10 @@ impl Material for Isotropic {
         INV_4PI
     }
 
-    fn scatter(
-        &self,
-        _r_in: &Ray,
-        r_out: &mut Ray,
-        hr: &HitRecord,
-        rng: &mut Rng,
-    ) -> Option<Color> {
-        r_out.set(hr.p, v3::random_unit_vector(rng));
-        let attenuation = self.texture.value(hr.u, hr.v, hr.p);
-        // *pdf = INV_4PI;
-
-        Some(attenuation)
+    fn scatter(&self, _r_in: &Ray, hr: &HitRecord, _rng: &mut Rng) -> Option<ScatterRecord> {
+        Some(ScatterRecord::Pdf {
+            attenuation: self.texture.value(hr.u, hr.v, hr.p),
+            pdf: Box::new(SpherePdf),
+        })
     }
 }
