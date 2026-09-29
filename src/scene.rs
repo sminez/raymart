@@ -5,7 +5,7 @@ use crate::{
     bvh::Bvh,
     hit::{
         transforms::{ConstantMedium, Rotate, Translate},
-        Hittable,
+        Hittable, HittableList,
     },
     leak_ptr,
     material::{Dielectric, DiffuseLight, Isotropic, Lambertian, Material, Metal, Specular},
@@ -222,6 +222,7 @@ impl ObjSpec {
         mat_specs: &HashMap<String, MatSpec>,
     ) -> &'static dyn Hittable {
         let mut h = self.hittable.as_dyn_hittable(mats);
+
         if let Some(angle) = self.meta.rotate {
             h = leak_ptr!(Rotate::new(h, angle));
         }
@@ -304,6 +305,18 @@ impl HittableSpec {
         };
 
         mat.as_color()
+    }
+
+    fn material(&self) -> &str {
+        match self {
+            Self::Sphere { material, .. } => material,
+            Self::UvSphere { material, .. } => material,
+            Self::IcoSphere { material, .. } => material,
+            Self::NoiseSphere { material, .. } => material,
+            Self::Box { material, .. } => material,
+            Self::Quad { material, .. } => material,
+            Self::Triangle { material, .. } => material,
+        }
     }
 
     fn as_dyn_hittable(
@@ -477,25 +490,50 @@ impl Scene {
         Some(toml::from_str(content).unwrap())
     }
 
-    pub fn load_scene(&self, rng: &mut Rng) -> (Vec<&'static dyn Hittable>, Camera) {
+    pub fn load_scene(&self, rng: &mut Rng) -> (Vec<&'static dyn Hittable>, HittableList, Camera) {
         let mut hittables = Vec::new();
+        let lights_names: Vec<_> = self
+            .materials
+            .iter()
+            .filter_map(|(k, v)| {
+                if matches!(v, MatSpec::Light { .. }) {
+                    Some(k.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         let materials: HashMap<String, &'static dyn Material> = self
             .materials
             .iter()
             .map(|(k, v)| (k.clone(), v.as_material(rng)))
             .collect();
 
+        let mut lights = HittableList::default();
+
         for mesh in self.meshes.iter() {
-            hittables.push(mesh.as_dyn_hittable(
+            let h = mesh.as_dyn_hittable(
                 &materials,
                 &self.materials,
                 self.as_points,
                 self.point_radius,
-            ));
+            );
+
+            if lights_names.contains(&mesh.material.as_str()) {
+                lights.add(h);
+            }
+
+            hittables.push(h);
         }
 
         for obj in self.objects.clone().into_iter() {
-            hittables.push(obj.as_dyn_hittable(&materials, &self.materials));
+            let h = obj.as_dyn_hittable(&materials, &self.materials);
+            if lights_names.contains(&obj.hittable.material()) {
+                lights.add(h);
+            }
+
+            hittables.push(h);
         }
 
         let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);
@@ -519,6 +557,6 @@ impl Scene {
             focus_dist,
         );
 
-        (hittables, camera)
+        (hittables, lights, camera)
     }
 }

@@ -1,8 +1,15 @@
 use gif::{Encoder, Frame, Repeat};
 use rand::SeedableRng;
 use raymart::{
-    color, hit::Hittable, material::Specular, noise::Perlin, ray::Camera, sdl::MainThreadState,
-    shapes::SphereMesh, Backend, Bvh, Color, Rng, Scene, P3,
+    color,
+    hit::{Hittable, HittableList},
+    leak_ptr,
+    material::Specular,
+    noise::Perlin,
+    ray::Camera,
+    sdl::MainThreadState,
+    shapes::SphereMesh,
+    Backend, Bvh, Color, Rng, Scene, P3,
 };
 use sdl2::{event::Event, keyboard::Keycode};
 use std::{
@@ -53,7 +60,8 @@ fn main() -> anyhow::Result<()> {
 
     // Init the rest of the scene and camera
     let s = Scene::try_from_file(SCENE).unwrap();
-    let (hittables, camera) = s.load_scene(&mut rng);
+    let (hittables, lights, camera) = s.load_scene(&mut rng);
+    let lights = leak_ptr!(lights);
     let (w, h) = camera.dims();
     let (mut mts, canvas) = MainThreadState::init(w, h)?;
     let tc = canvas.texture_creator();
@@ -65,6 +73,7 @@ fn main() -> anyhow::Result<()> {
             n_frames,
             berg,
             hittables.clone(),
+            lights,
             &camera,
             &mut mts,
             &mut backend,
@@ -74,6 +83,7 @@ fn main() -> anyhow::Result<()> {
             n_frames,
             berg,
             hittables.clone(),
+            lights,
             &camera,
             &mut mts,
             &mut backend,
@@ -93,11 +103,13 @@ fn main() -> anyhow::Result<()> {
     }
 }
 
+#[expect(clippy::too_many_arguments)]
 fn render_frame(
     i: usize,
     n_frames: usize,
     mut berg: SphereMesh,
     mut hittables: Vec<&'static dyn Hittable>,
+    lights: &'static HittableList,
     camera: &Camera,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,
@@ -109,13 +121,14 @@ fn render_frame(
     let bvh_tree = Bvh::new(hittables);
 
     eprintln!("Rendering frame {i}...");
-    camera.render_sdl(bvh_tree, mts, backend)
+    camera.render_sdl(bvh_tree, lights, mts, backend)
 }
 
 fn render_gif(
     n_frames: usize,
     berg: SphereMesh,
     hittables: Vec<&'static dyn Hittable>,
+    lights: &'static HittableList,
     camera: &Camera,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,
@@ -131,6 +144,7 @@ fn render_gif(
             n_frames,
             berg.clone(),
             hittables.clone(),
+            lights,
             camera,
             mts,
             backend,

@@ -1,4 +1,4 @@
-use crate::{bvh::AABBox, material::Material, Ray, P3, V3};
+use crate::{bvh::AABBox, material::Material, Ray, Rng, P3, V3};
 use std::{fmt, ops::Add};
 
 pub mod transforms;
@@ -6,6 +6,16 @@ pub mod transforms;
 pub trait Hittable: fmt::Debug + Send + Sync {
     fn bounding_box(&self) -> AABBox;
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord>;
+
+    #[expect(unused_variables)]
+    fn pdf_value(&self, origin: P3, dir: V3) -> f32 {
+        0.0
+    }
+
+    #[expect(unused_variables)]
+    fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
+        V3::X
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -24,6 +34,7 @@ impl Interval {
     pub const EMPTY: Interval = Interval::new(f32::INFINITY, -f32::INFINITY);
     pub const UNIVERSE: Interval = Interval::new(-f32::INFINITY, f32::INFINITY);
     pub const UNIT: Interval = Interval::new(0.0, 1.0);
+    pub const TO_INFINITY: Interval = Interval::new(0.001, f32::INFINITY);
 
     pub const fn new(min: f32, max: f32) -> Interval {
         Self { min, max }

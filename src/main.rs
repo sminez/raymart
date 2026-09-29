@@ -1,5 +1,5 @@
 use rand::SeedableRng;
-use raymart::{color, sdl::MainThreadState, Backend, Bvh, Rng, Scene, SCENE_PATH};
+use raymart::{color, leak_ptr, sdl::MainThreadState, Backend, Bvh, Rng, Scene, SCENE_PATH};
 use sdl2::{event::Event, keyboard::Keycode};
 use std::{env, fs};
 
@@ -9,7 +9,8 @@ fn main() -> anyhow::Result<()> {
 
     let s = Scene::try_from_file(&path).unwrap_or_default();
     let mut rng = Rng::seed_from_u64(0);
-    let (hittables, camera) = s.load_scene(&mut rng);
+    let (hittables, lights, camera) = s.load_scene(&mut rng);
+    let lights = leak_ptr!(lights);
 
     eprintln!("Computing bvh tree...");
     let bvh_tree = Bvh::new(hittables);
@@ -24,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     let mut backend = Backend::init(w, h, canvas, &tc)?;
 
     eprintln!("Rendering...");
-    let (_, pixels) = camera.render_sdl(bvh_tree, &mut mts, &mut backend);
+    let (_, pixels) = camera.render_sdl(bvh_tree, lights, &mut mts, &mut backend);
 
     eprintln!("writing ppm file");
     let s: String = pixels.iter().map(|c| color::ppm_string(*c)).collect();

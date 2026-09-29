@@ -1,7 +1,8 @@
 use crate::{
     bvh::{Bvh, MAX_BVH_DEPTH},
     color,
-    hit::Interval,
+    hit::{HittableList, Interval},
+    pdf::{HittablePdf, Pdf},
     sdl::MainThreadState,
     v3, Backend, Color, Rng, P3, V3,
 };
@@ -103,6 +104,7 @@ impl Camera {
     pub fn render_sdl(
         &self,
         bvh: Bvh,
+        lights: &'static HittableList,
         mts: &mut MainThreadState,
         backend: &mut Backend<'_>,
     ) -> (bool, Vec<Color>) {
@@ -116,7 +118,7 @@ impl Camera {
 
         'iters: for i in 1..=self.iterations {
             let scale = 1.0 / (i * self.samples_pp) as f32;
-            self.render_pass(i as usize, &bvh, &mut new_pixels);
+            self.render_pass(i as usize, &bvh, lights, &mut new_pixels);
 
             let render_time = Instant::now().duration_since(start);
             eprintln!(
@@ -164,7 +166,13 @@ impl Camera {
         (early_return, pixels)
     }
 
-    pub fn render_pass(&self, i: usize, bvh: &Bvh, pixels: &mut [Color]) {
+    pub fn render_pass(
+        &self,
+        i: usize,
+        bvh: &Bvh,
+        lights: &'static HittableList,
+        pixels: &mut [Color],
+    ) {
         pixels
             .par_chunks_mut(self.image_width as usize)
             .enumerate()
@@ -180,7 +188,7 @@ impl Camera {
 
                     for _ in 0..self.samples_pp {
                         self.get_ray(fi, fj, &mut r_in, &mut rng);
-                        acc += self.ray_color(&mut r_in, &mut r_out, bvh, &mut rng);
+                        acc += self.ray_color(&mut r_in, &mut r_out, bvh, lights, &mut rng);
                     }
 
                     *px = acc;
@@ -217,17 +225,23 @@ impl Camera {
         self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
     }
 
-    fn ray_color(&self, r_in: &mut Ray, r_out: &mut Ray, bvh: &Bvh, rng: &mut Rng) -> Color {
+    fn ray_color(
+        &self,
+        r_in: &mut Ray,
+        r_out: &mut Ray,
+        bvh: &Bvh,
+        _lights: &'static HittableList,
+        rng: &mut Rng,
+    ) -> Color {
         let mut radiance = color::BLACK;
         let mut beta = color::WHITE;
         let mut stack = [(0, 0.0); MAX_BVH_DEPTH];
 
         for _ in 0..self.max_bounces {
-            let hr =
-                match bvh.hits_with_stack(r_in, Interval::new(0.001, f32::INFINITY), &mut stack) {
-                    Some(hr) => hr,
-                    None => return radiance + beta * self.bg,
-                };
+            let hr = match bvh.hits_with_stack(r_in, Interval::TO_INFINITY, &mut stack) {
+                Some(hr) => hr,
+                None => return radiance + beta * self.bg,
+            };
 
             radiance += beta * hr.mat.color_emitted(&hr);
 
