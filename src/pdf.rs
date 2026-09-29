@@ -9,6 +9,7 @@ use std::{
     fmt,
 };
 
+const INV_2PI: f32 = 1.0 / (2.0 * PI);
 const INV_4PI: f32 = 1.0 / (4.0 * PI);
 
 pub trait Pdf: fmt::Debug + Send + Sync + 'static {
@@ -53,6 +54,54 @@ impl Pdf for CosinePdf {
     }
 }
 
+// Phong style BRDF
+#[derive(Debug)]
+pub struct GlossyPdf {
+    basis: Onb,
+    normal: V3,
+    exponent: f32,
+}
+
+impl GlossyPdf {
+    pub fn new(reflect_dir: V3, normal: V3, exponent: f32) -> Self {
+        Self {
+            basis: Onb::new(reflect_dir.normalize()),
+            normal: normal.normalize(),
+            exponent,
+        }
+    }
+}
+
+impl Pdf for GlossyPdf {
+    fn value(&self, dir: V3) -> f32 {
+        let dir = dir.normalize();
+
+        if self.normal.dot(dir) <= 0.0 {
+            return 0.0;
+        }
+
+        let cos_alpha = self.basis.w.dot(dir).max(0.0);
+
+        ((self.exponent + 1.0) * cos_alpha.powf(self.exponent)) * INV_2PI
+    }
+
+    fn generate(&self, rng: &mut Rng) -> V3 {
+        loop {
+            let (u1, u2): (f32, f32) = rng.random();
+            let phi = 2.0 * PI * u1;
+            let cos_theta = u2.powf(1.0 / (self.exponent + 1.0));
+            let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
+            let (sin_phi, cos_phi) = phi.sin_cos();
+            let local = V3::new(cos_phi * sin_theta, sin_phi * sin_theta, cos_theta);
+            let dir = self.basis.transform(local).normalize();
+
+            if self.normal.dot(dir) > 0.0 {
+                return dir;
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct HittablePdf {
     objects: &'static dyn Hittable,
@@ -88,6 +137,37 @@ impl Pdf for MixturePdf {
 
     fn generate(&self, rng: &mut Rng) -> V3 {
         if rng.random_bool(0.5) {
+            self.p1.generate(rng)
+        } else {
+            self.p2.generate(rng)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct WeightedMixturePdf {
+    w: f32,
+    p1: Box<dyn Pdf>,
+    p2: Box<dyn Pdf>,
+}
+
+impl WeightedMixturePdf {
+    pub fn new(w: f32, p1: impl Pdf, p2: impl Pdf) -> Self {
+        Self {
+            w: w.clamp(0.0, 1.0),
+            p1: Box::new(p1),
+            p2: Box::new(p2),
+        }
+    }
+}
+
+impl Pdf for WeightedMixturePdf {
+    fn value(&self, dir: V3) -> f32 {
+        self.w * self.p1.value(dir) + (1.0 - self.w) * self.p2.value(dir)
+    }
+
+    fn generate(&self, rng: &mut Rng) -> V3 {
+        if rng.random_range(0.0..1.0) < self.w {
             self.p1.generate(rng)
         } else {
             self.p2.generate(rng)

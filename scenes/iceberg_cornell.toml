@@ -55,7 +55,6 @@ fuzz = 0.4
 [materials.marble]
 kind = "specular"
 color = [0.7, 0.55, 0.4]
-spec_color = 0.5
 smoothness = 0.2
 spec_prob = 0.1
 

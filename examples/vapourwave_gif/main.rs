@@ -55,7 +55,7 @@ fn main() -> anyhow::Result<()> {
     let noise: Perlin<256> = Perlin::new(&mut rng);
 
     // Create our iceberg and wrap it in a Rotate so we can turn it each frame
-    let mat = Specular::new_mat(Color::new(0.7, 0.55, 0.4), Color::splat(0.5), 0.1, 0.06);
+    let mat = Specular::new_mat(Color::new(0.7, 0.55, 0.4), 0.1, 0.06);
     let berg = SphereMesh::noise_sphere_with_source(p, r, 7, false, 2.0, 9, mat, &noise);
 
     // Init the rest of the scene and camera

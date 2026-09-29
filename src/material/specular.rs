@@ -1,32 +1,27 @@
 use crate::{
     color, leak_ptr,
     material::{Material, ScatterRecord},
-    pdf::CosinePdf,
-    v3, Color, HitRecord, Ray, Rng,
+    pdf::{CosinePdf, GlossyPdf, WeightedMixturePdf},
+    Color, HitRecord, Ray, Rng,
 };
-use rand::RngExt;
 use std::f32::consts::FRAC_1_PI;
 
 #[derive(Debug, Clone)]
 pub struct Specular {
     pub albedo: Color,
-    pub spec_albedo: Color,
-    pub smoothness: f32,
+    pub exponent: f32,
     pub prob: f32,
 }
 
 impl Specular {
-    pub fn new_mat(
-        albedo: impl Into<Color>,
-        spec_albedo: impl Into<Color>,
-        smoothness: f32,
-        prob: f32,
-    ) -> &'static dyn Material {
+    pub fn new_mat(albedo: impl Into<Color>, smoothness: f32, prob: f32) -> &'static dyn Material {
+        let roughness = (1.0 - smoothness).clamp(0.001, 1.0);
+        let exponent = (2.0 / (roughness * roughness) - 2.0).max(0.0);
+
         leak_ptr!(Self {
             albedo: albedo.into(),
-            spec_albedo: spec_albedo.into(),
-            smoothness,
-            prob,
+            exponent,
+            prob: prob.clamp(0.0, 1.0),
         })
     }
 }
@@ -50,23 +45,17 @@ impl Material for Specular {
         }
     }
 
-    fn scatter(&self, r_in: &Ray, hr: &HitRecord, rng: &mut Rng) -> Option<ScatterRecord> {
-        let diffuse_dir = hr.normal + v3::random_unit_vector(rng);
-        let is_specular = self.prob > rng.random_range(0.0..1.0);
+    fn scatter(&self, r_in: &Ray, hr: &HitRecord, _rng: &mut Rng) -> Option<ScatterRecord> {
+        // let reflect_dir = r_in.dir.normalize().reflect(hr.normal).normalize();
+        let reflect_dir = r_in.dir.reflect(hr.normal);
 
-        if is_specular {
-            let specular_dir = r_in.dir.reflect(hr.normal);
-            let dir = diffuse_dir.lerp(specular_dir, self.smoothness);
-
-            Some(ScatterRecord::Skip {
-                attenuation: self.spec_albedo,
-                ray: Ray::new(hr.p, dir),
-            })
-        } else {
-            Some(ScatterRecord::Pdf {
-                attenuation: self.albedo,
-                pdf: Box::new(CosinePdf::new(diffuse_dir)),
-            })
-        }
+        Some(ScatterRecord::Pdf {
+            attenuation: self.albedo,
+            pdf: Box::new(WeightedMixturePdf::new(
+                self.prob,
+                GlossyPdf::new(reflect_dir, hr.normal, self.exponent),
+                CosinePdf::new(hr.normal),
+            )),
+        })
     }
 }

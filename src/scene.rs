@@ -50,7 +50,6 @@ pub enum MatSpec {
     },
     Specular {
         color: ColorSpec,
-        spec_color: ColorSpec,
         smoothness: f32,
         spec_prob: f32,
     },
@@ -100,10 +99,9 @@ impl MatSpec {
             MatSpec::Solid { color } => Lambertian::solid_color(color),
             MatSpec::Specular {
                 color,
-                spec_color,
                 smoothness,
                 spec_prob,
-            } => Specular::new_mat(color, spec_color, *smoothness, *spec_prob),
+            } => Specular::new_mat(color, *smoothness, *spec_prob),
             MatSpec::Checker { scale, odd, even } => Lambertian::checker(*scale, odd, even),
             MatSpec::Metal { color, fuzz } => Metal::new_mat(color, *fuzz),
             MatSpec::Dielectric { ref_index, color } => {
