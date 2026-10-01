@@ -2,13 +2,14 @@ use crate::{
     bvh::AABBox,
     hit::{Hittable, Interval},
     material::Material,
-    v3::{random_on_sphere, Onb},
+    v3::{random_on_sphere, random_unit_vector, Onb},
     HitRecord, Ray, Rng, P3, V3,
 };
 use std::f32::consts::PI;
 
 const INV_PI: f32 = 1.0 / PI;
 const INV_2PI: f32 = 1.0 / (2.0 * PI);
+const INV_4PI: f32 = 1.0 / (4.0 * PI);
 
 #[derive(Debug, Clone)]
 pub struct Sphere {
@@ -89,15 +90,29 @@ impl Hittable for Sphere {
         }
 
         let d_sq = (self.center - origin).length_squared();
+        if d_sq <= self.radius_sq + f32::EPSILON {
+            // If origin is on or inside our boundary then sample uniformly over directions
+            return INV_4PI;
+        }
+
         let cos_theta_max = (1.0 - self.radius_sq / d_sq).sqrt();
         let solid_angle = 2.0 * PI * (1.0 - cos_theta_max);
 
-        1.0 / solid_angle
+        if solid_angle <= f32::EPSILON {
+            0.0
+        } else {
+            1.0 / solid_angle
+        }
     }
 
     fn random_dir(&self, origin: V3, rng: &mut Rng) -> V3 {
         let d = self.center - origin;
         let d_sq = d.length_squared();
+
+        if d_sq <= self.radius_sq + f32::EPSILON {
+            // matching the condition above in pdf_value
+            return random_unit_vector(rng);
+        }
 
         Onb::new(d).transform(random_on_sphere(self.radius_sq, d_sq, rng))
     }

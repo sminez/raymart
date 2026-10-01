@@ -15,6 +15,11 @@ pub const WHITE: Color = Color::new(1.0, 1.0, 1.0);
 pub const BLACK: Color = Color::new(0.0, 0.0, 0.0);
 
 pub fn to_rgb(c: Color) -> [u8; 3] {
+    // Color NaNs as magenta to make them instantly visible
+    if c.x.is_nan() || c.y.is_nan() || c.z.is_nan() {
+        return [255, 0, 255];
+    }
+
     // Translate the [0,1] component values to the byte range [0,255].
     let intensity = Interval::new(0.0, 0.999);
     let r = (256.0 * intensity.clamp(linear_to_gamma(c.x))) as u8;

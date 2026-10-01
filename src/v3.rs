@@ -37,10 +37,10 @@ pub fn random_on_hemisphere(normal: V3, rng: &mut Rng) -> V3 {
 
 pub fn random_on_sphere(r_sq: f32, d_sq: f32, rng: &mut Rng) -> V3 {
     let (a, b): (f32, f32) = rng.random();
-    let z = 1.0 + b * ((1.0 - r_sq / d_sq).sqrt() - 1.0);
+    let z = 1.0 + b * ((1.0 - r_sq / d_sq).max(0.0).sqrt() - 1.0);
     let phi = 2.0 * PI * a;
     let (sin_phi, cos_phi) = phi.sin_cos();
-    let k = (1.0 - z * z).sqrt();
+    let k = (1.0 - z * z).max(0.0).sqrt();
 
     V3::new(cos_phi * k, sin_phi * k, z)
 }

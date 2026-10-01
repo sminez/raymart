@@ -86,7 +86,14 @@ impl Hittable for Triangle {
             None => return 0.0,
         };
         let d_sq = dir.length_squared();
+        if !d_sq.is_finite() || d_sq <= f32::EPSILON {
+            return 0.0;
+        }
+
         let cosine = (dir.dot(hr.normal) / d_sq.sqrt()).abs();
+        if !cosine.is_finite() || cosine <= f32::EPSILON {
+            return 0.0;
+        }
 
         hr.t.powi(2) / (cosine * self.area)
     }

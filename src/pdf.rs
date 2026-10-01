@@ -44,6 +44,11 @@ impl CosinePdf {
 
 impl Pdf for CosinePdf {
     fn value(&self, dir: V3) -> f32 {
+        let len_sq = dir.length_squared();
+        if !len_sq.is_finite() || len_sq <= f32::EPSILON {
+            return 0.0;
+        }
+
         let cos_theta = dir.normalize().dot(self.basis.w);
 
         (cos_theta * FRAC_1_PI).max(0.0)
@@ -55,25 +60,45 @@ impl Pdf for CosinePdf {
 }
 
 // Phong style BRDF
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct GlossyPdf {
     basis: Onb,
     normal: V3,
     exponent: f32,
+    inv_exponent_plus_1: f32,
 }
 
 impl GlossyPdf {
-    pub fn new(reflect_dir: V3, normal: V3, exponent: f32) -> Self {
+    pub fn new(reflect_dir: V3, normal: V3, smoothness: f32) -> Self {
+        let roughness = (1.0 - smoothness).clamp(0.001, 1.0);
+        let exponent = (2.0 / (roughness * roughness) - 2.0).max(0.0);
+        let inv_exponent_plus_1 = 1.0 / (exponent + 1.0);
+
         Self {
             basis: Onb::new(reflect_dir.normalize()),
             normal: normal.normalize(),
             exponent,
+            inv_exponent_plus_1,
+        }
+    }
+
+    pub fn copy_with_hit_details(&self, reflect_dir: V3, normal: V3) -> Self {
+        Self {
+            basis: Onb::new(reflect_dir.normalize()),
+            normal: normal.normalize(),
+            exponent: self.exponent,
+            inv_exponent_plus_1: self.inv_exponent_plus_1,
         }
     }
 }
 
 impl Pdf for GlossyPdf {
     fn value(&self, dir: V3) -> f32 {
+        let len_sq = dir.length_squared();
+        if !len_sq.is_finite() || len_sq <= f32::EPSILON {
+            return 0.0;
+        }
+
         let dir = dir.normalize();
 
         if self.normal.dot(dir) <= 0.0 {
@@ -89,14 +114,14 @@ impl Pdf for GlossyPdf {
         loop {
             let (u1, u2): (f32, f32) = rng.random();
             let phi = 2.0 * PI * u1;
-            let cos_theta = u2.powf(1.0 / (self.exponent + 1.0));
+            let cos_theta = u2.powf(self.inv_exponent_plus_1);
             let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
             let (sin_phi, cos_phi) = phi.sin_cos();
             let local = V3::new(cos_phi * sin_theta, sin_phi * sin_theta, cos_theta);
-            let dir = self.basis.transform(local).normalize();
+            let dir = self.basis.transform(local);
 
             if self.normal.dot(dir) > 0.0 {
-                return dir;
+                return dir.normalize();
             }
         }
     }
@@ -120,7 +145,14 @@ impl Pdf for HittablePdf {
     }
 
     fn generate(&self, rng: &mut Rng) -> V3 {
-        self.objects.random_dir(self.origin, rng).normalize()
+        let dir = self.objects.random_dir(self.origin, rng);
+        let len_sq = dir.length_squared();
+
+        if !len_sq.is_finite() || len_sq <= f32::EPSILON {
+            random_unit_vector(rng)
+        } else {
+            dir / len_sq.sqrt()
+        }
     }
 }
 

@@ -1,8 +1,8 @@
 # Scene configuration
-samples_per_pixel = 500
-samples_step_size = 10
+samples_per_pixel = 800
+samples_step_size = 20
 max_bounces = 5
-image_width = 1500
+image_width = 1400
 bg = 0.0
 
 # Camera
@@ -31,7 +31,6 @@ fuzz = 0.1
 [materials.marble]
 kind = "specular"
 color = [0.7, 0.55, 0.4]
-spec_color = 0.5
 smoothness = 0.1
 spec_prob = 0.06
 
@@ -98,6 +97,5 @@ subdivisions = 7
 subtract = false
 frac_inv = 2.0
 noise_depth = 9
-seed = "sminez"
+seed = "big ears"
 material = "marble"
-# material = "gold"

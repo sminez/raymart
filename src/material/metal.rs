@@ -38,16 +38,9 @@ impl Material for Metal {
         let reflected =
             r_in.dir.reflect(hr.normal).normalize() + (self.fuzz * v3::random_unit_vector(rng));
 
-        // r_out.set(hr.p, reflected);
-        // if r_out.dir.dot(hr.normal) > 0.0 {
-        //     Some(self.albedo)
-        // } else {
-        //     None
-        // }
-
         Some(ScatterRecord::Skip {
             attenuation: self.albedo,
-            ray: Ray::new(hr.p, reflected),
+            ray: Ray::new(hr.p, reflected.normalize()),
         })
     }
 }

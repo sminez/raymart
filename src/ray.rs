@@ -265,10 +265,19 @@ impl Camera {
                 p2: scatter_pdf,
             };
 
-            *scattered = Ray::new(hr.p, pdf.generate(rng));
-            let pdf_value = pdf.value(scattered.dir);
-            let scattering_pdf = hr.mat.scattering_pdf(r_in, scattered, &hr);
+            let dir = pdf.generate(rng);
+            let dir_len_sq = dir.length_squared();
+            if !dir_len_sq.is_finite() || dir_len_sq <= f32::EPSILON {
+                break;
+            }
 
+            *scattered = Ray::new(hr.p, dir);
+            let pdf_value = pdf.value(scattered.dir);
+            if pdf_value <= 0.0 {
+                break; // avoid dividing by 0 below
+            }
+
+            let scattering_pdf = hr.mat.scattering_pdf(r_in, scattered, &hr);
             beta *= attenuation * scattering_pdf / pdf_value;
 
             if (beta.x + beta.y + beta.z) < 0.0001 {

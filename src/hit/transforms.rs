@@ -1,3 +1,5 @@
+use std::f32;
+
 use crate::{
     bvh::AABBox,
     hit::{Hittable, Interval},
@@ -29,6 +31,7 @@ impl ConstantMedium {
         density: f32,
         texture: &'static dyn Texture,
     ) -> ConstantMedium {
+        assert!(density > 0.0, "ConstantMedium density must be > 0");
         let neg_inv_density = -1.0 / density;
 
         Self {
@@ -45,6 +48,11 @@ impl Hittable for ConstantMedium {
     }
 
     fn hits(&self, r: &Ray, ray_t: Interval) -> Option<HitRecord> {
+        let r_len = r.dir.length();
+        if !r_len.is_finite() || r_len <= f32::EPSILON {
+            return None;
+        }
+
         let mut hr1 = self.boundary.hits(r, Interval::UNIVERSE)?;
         let i2 = Interval::new(hr1.t + 0.0001, f32::INFINITY);
         let mut hr2 = self.boundary.hits(r, i2)?;
@@ -59,7 +67,7 @@ impl Hittable for ConstantMedium {
 
         let r_len = r.dir.length();
         let dist_in_boundary = (hr2.t - hr1.t) * r_len;
-        let hit_dist = self.neg_inv_density * random_range(0.0..1.0f32).log2();
+        let hit_dist = self.neg_inv_density * random_range(f32::MIN_POSITIVE..1.0).ln();
         if hit_dist > dist_in_boundary {
             return None;
         }
