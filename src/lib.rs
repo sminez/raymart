@@ -28,6 +28,8 @@ pub const SAMPLES_PER_PIXEL: u16 = 4500; // number of random samples per pixel
 pub const STEP_SIZE: u16 = 100; // number of samples per render step
 pub const DEBUG_SAMPLES_PER_PIXEL: u16 = 10; // number of random samples per pixel
 pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
+pub const DEFOCUS_ANGLE: f32 = 0.0;
+pub const FOCUS_DIST: f32 = 10.0;
 pub const SCENE_PATH: &str = "scene.toml";
 
 #[macro_export]

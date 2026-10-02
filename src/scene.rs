@@ -12,7 +12,8 @@ use crate::{
     p,
     ray::Camera,
     shapes::{cuboid, Quad, Sphere, SphereMesh, Triangle},
-    v, Color, Rng, DEBUG_SAMPLES_PER_PIXEL, IMAGE_WIDTH, MAX_BOUNCES, P3, STEP_SIZE, V3,
+    v, Color, Rng, DEBUG_SAMPLES_PER_PIXEL, DEFOCUS_ANGLE, FOCUS_DIST, IMAGE_WIDTH, MAX_BOUNCES,
+    P3, STEP_SIZE, V3,
 };
 use glam::Mat3;
 use serde::Deserialize;
@@ -415,6 +416,10 @@ pub struct Scene {
     pub from: [f32; 3],
     pub at: [f32; 3],
     pub v_up: [f32; 3],
+    #[serde(default)]
+    pub defocus_angle: f32,
+    #[serde(default = "default_focus_dist")]
+    pub focus_dist: f32,
     // hittables
     pub as_points: bool,
     pub point_radius: f32,
@@ -425,6 +430,10 @@ pub struct Scene {
     pub objects: Vec<ObjSpec>,
     // light
     pub bg: ColorSpec,
+}
+
+fn default_focus_dist() -> f32 {
+    FOCUS_DIST
 }
 
 impl Default for Scene {
@@ -440,6 +449,8 @@ impl Default for Scene {
             at: [0.0, 0.0, 0.0],
             v_up: [0.0, 1.0, 0.0],
             as_points: false,
+            defocus_angle: DEFOCUS_ANGLE,
+            focus_dist: FOCUS_DIST,
             point_radius: 0.001,
             materials: [
                 (
@@ -535,8 +546,6 @@ impl Scene {
         }
 
         let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);
-        let defocus_angle = 0.0;
-        let focus_dist = 10.0;
         let look_from = p!(self.from[0], self.from[1], self.from[2]);
         let look_at = p!(self.at[0], self.at[1], self.at[2]);
 
@@ -551,8 +560,8 @@ impl Scene {
             look_from,
             look_at,
             v_up,
-            defocus_angle,
-            focus_dist,
+            self.defocus_angle,
+            self.focus_dist,
         );
 
         (hittables, lights, camera)
