@@ -15,6 +15,7 @@ fn main() -> anyhow::Result<()> {
         integrator,
         hittables,
         lights,
+        ..
     } = Scene::try_from_file(&path)?;
 
     eprintln!("{integrator:#?}");

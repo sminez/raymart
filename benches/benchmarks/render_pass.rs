@@ -1,23 +1,22 @@
 use criterion::{criterion_group, measurement::WallTime, BenchmarkGroup, Criterion};
-use rand::SeedableRng;
-use raymart::{leak_ptr, Bvh, Color, Rng, Scene};
+use raymart::{camera::Camera, leak_ptr, Bvh, Color, Scene};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("Render pass");
 
     scene_render_pass(
         "cuboids cornell",
-        include_str!("./cuboids_cornell.toml"),
+        include_str!("./cuboids_cornell.yaml"),
         &mut group,
     );
     scene_render_pass(
         "glass ball cornell",
-        include_str!("./glass_ball_cornell.toml"),
+        include_str!("./glass_ball_cornell.yaml"),
         &mut group,
     );
     scene_render_pass(
         "dragon head",
-        include_str!("./dragon_head.toml"),
+        include_str!("./dragon_head.yaml"),
         &mut group,
     );
 
@@ -25,18 +24,22 @@ fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn scene_render_pass(title: &str, scene: &str, group: &mut BenchmarkGroup<'_, WallTime>) {
-    let s = Scene::try_from_str(scene).unwrap();
-    let mut rng = Rng::seed_from_u64(0);
-    let (hittables, lights, camera) = s.load_scene(&mut rng);
+    let Scene {
+        integrator,
+        hittables,
+        lights,
+        ..
+    } = Scene::try_from_str(scene).unwrap();
+
     let bvh = Bvh::new(hittables);
-    let (w, h) = camera.dims();
     let lights = leak_ptr!(lights);
 
-    let mut pixels = vec![Color::default(); w as usize * h as usize];
+    let (w, h) = integrator.camera.image_dims();
+    let mut pixels = vec![Color::default(); w * h];
 
     group.bench_function(title, |b| {
         b.iter(|| {
-            camera.render_pass(1, &bvh, lights, &mut pixels);
+            integrator.render_pass(1, &bvh, lights, &mut pixels);
         })
     });
 }

@@ -1,13 +1,14 @@
 use gif::{Encoder, Frame, Repeat};
 use rand::SeedableRng;
 use raymart::{
+    camera::{Camera, SimpleCamera},
     color,
     hit::{Hittable, HittableList},
+    integrator::SimpleIntegrator,
     leak_ptr,
-    material::Specular,
     noise::Perlin,
-    ray::Camera,
-    sdl::MainThreadState,
+    sampler::SimpleSampler,
+    sdl::{render_with_sdl_preview, MainThreadState},
     shapes::SphereMesh,
     Backend, Bvh, Color, Rng, Scene, P3,
 };
@@ -20,7 +21,7 @@ use std::{
 };
 
 const DEFAULT_SEED: &str = "deadbeef";
-const SCENE: &str = "examples/vapourwave_gif/scene.toml";
+const SCENE: &str = "examples/vapourwave_gif/scene.yaml";
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<_> = env::args().skip(1).collect();
@@ -36,14 +37,15 @@ fn main() -> anyhow::Result<()> {
     let preview_only = args.get(2).map(|s| s.as_str()) == Some("--preview");
 
     let s = fs::read_to_string(SCENE).unwrap();
-    let params: Vec<f32> = s
-        .lines()
+    let mut lines = s.lines();
+    let params: Vec<f32> = lines
         .next()
         .unwrap()
         .trim_start_matches("# ")
         .split_whitespace()
         .map(|s| s.parse::<f32>().unwrap())
         .collect();
+    let mat_name = lines.next().unwrap().trim_start_matches("# ");
     let p = P3::new(params[0], params[1], params[2]);
     let r = params[3];
 
@@ -54,18 +56,25 @@ fn main() -> anyhow::Result<()> {
     let mut rng = Rng::seed_from_u64(seed);
     let noise: Perlin<256> = Perlin::new(&mut rng);
 
-    // Create our iceberg and wrap it in a Rotate so we can turn it each frame
-    let mat = Specular::new_mat(Color::new(0.7, 0.55, 0.4), 0.1, 0.06);
-    let berg = SphereMesh::noise_sphere_with_source(p, r, 7, false, 2.0, 9, mat, &noise);
-
-    // Init the rest of the scene and camera
-    let s = Scene::try_from_file(SCENE).unwrap();
-    let (hittables, lights, camera) = s.load_scene(&mut rng);
+    // Init the scene
+    let Scene {
+        integrator,
+        hittables,
+        lights,
+        materials,
+    } = Scene::try_from_file(SCENE).unwrap();
     let lights = leak_ptr!(lights);
-    let (w, h) = camera.dims();
-    let (mut mts, canvas) = MainThreadState::init(w, h)?;
+
+    // Create our iceberg
+    let mat = materials
+        .get(mat_name)
+        .expect("unknown material name specified for sphere");
+    let berg = SphereMesh::noise_sphere_with_source(p, r, 7, false, 2.0, 9, *mat, &noise);
+
+    let (w, h) = integrator.camera.image_dims();
+    let (mut mts, canvas) = MainThreadState::init(w as u32, h as u32)?;
     let tc = canvas.texture_creator();
-    let mut backend = Backend::init(w, h, canvas, &tc)?;
+    let mut backend = Backend::init(w as u32, h as u32, canvas, &tc)?;
 
     if preview_only {
         render_frame(
@@ -74,7 +83,7 @@ fn main() -> anyhow::Result<()> {
             berg,
             hittables.clone(),
             lights,
-            &camera,
+            &integrator,
             &mut mts,
             &mut backend,
         );
@@ -84,7 +93,7 @@ fn main() -> anyhow::Result<()> {
             berg,
             hittables.clone(),
             lights,
-            &camera,
+            &integrator,
             &mut mts,
             &mut backend,
         );
@@ -110,7 +119,7 @@ fn render_frame(
     mut berg: SphereMesh,
     mut hittables: Vec<&'static dyn Hittable>,
     lights: &'static HittableList,
-    camera: &Camera,
+    integrator: &SimpleIntegrator<SimpleCamera, SimpleSampler>,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,
 ) -> (bool, Vec<Color>) {
@@ -118,10 +127,10 @@ fn render_frame(
     hittables.push(berg.into_dyn_hittable());
 
     eprintln!("\nComputing bvh tree...");
-    let bvh_tree = Bvh::new(hittables);
+    let bvh = Bvh::new(hittables);
 
     eprintln!("Rendering frame {i}...");
-    camera.render_sdl(bvh_tree, lights, mts, backend)
+    render_with_sdl_preview(integrator, bvh, lights, mts, backend)
 }
 
 fn render_gif(
@@ -129,12 +138,12 @@ fn render_gif(
     berg: SphereMesh,
     hittables: Vec<&'static dyn Hittable>,
     lights: &'static HittableList,
-    camera: &Camera,
+    integrator: &SimpleIntegrator<SimpleCamera, SimpleSampler>,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,
 ) {
     let mut frames = Vec::with_capacity(n_frames);
-    let (w, h) = camera.dims();
+    let (w, h) = integrator.camera.image_dims();
 
     let start = Instant::now();
 
@@ -145,7 +154,7 @@ fn render_gif(
             berg.clone(),
             hittables.clone(),
             lights,
-            camera,
+            integrator,
             mts,
             backend,
         );

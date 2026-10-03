@@ -1,0 +1,86 @@
+integrator:
+  samples_per_pixel: 10
+  step_size: 10
+  max_bounces: 20
+
+camera:
+  image_width: 400
+  aspect_ratio: 1.0
+  fov: 40.0
+  from: [ 0.5, 0.5, -1.35 ]
+  at: [ 0.5, 0.5, 0.0 ]
+  v_up: [ 0.0, 1.0, 0.0 ]
+  defocus_angle: 0.0
+  focus_dist: 10.0
+
+scene:
+  bg: 0.01
+  meshes: []
+
+  materials:
+    light:
+      kind: light
+      color: 25.0
+    red:
+      kind: solid
+      color: [ 0.65, 0.05, 0.05 ]
+    green:
+      kind: solid
+      color: [ 0.12, 0.45, 0.15 ]
+    mirror:
+      kind: metal
+      color: 0.93
+      fuzz: 0.0
+    glass:
+      kind: dielectric
+      ref_index: 1.33
+    air:
+      kind: dielectric
+      ref_index: 0.769
+
+  objects:
+    # Cornell box
+    - kind: quad
+      material: light
+      q: [ 0.61, 0.999, 0.59 ]
+      u: [ -0.23, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, -0.18 ]
+    - kind: quad
+      material: green
+      q: [ 1.0, 0.0, 0.0 ]
+      u: [ 0.0, 1.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: red
+      q: [ 0.0, 0.0, 0.0 ]
+      u: [ 0.0, 1.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: mirror
+      q: [ 0.0, 0.0, 0.0 ]
+      u: [ 1.0, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: mirror
+      q: [ 0.0, 0.0, 1.0 ]
+      u: [ 1.0, 0.0, 0.0 ]
+      v: [ 0.0, 1.0, 0.0 ]
+    - kind: quad
+      material: mirror
+      q: [ 1.0, 1.0, 1.0 ]
+      u: [ -1, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, -1 ]
+
+    # Additional
+    - kind: sphere
+      material: glass
+      center: [ 0.62, 0.45, 0.61 ]
+      r: 0.27
+    - kind: sphere
+      material: air
+      center: [ 0.62, 0.45, 0.61 ]
+      r: 0.22
+    - kind: sphere
+      material: glass
+      center: [ 0.62, 0.45, 0.61 ]
+      r: 0.18

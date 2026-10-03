@@ -6,7 +6,9 @@ use crate::{
     },
     integrator::SimpleIntegrator,
     leak_ptr,
-    material::{Dielectric, DiffuseLight, Isotropic, Lambertian, Material, Metal, Specular},
+    material::{
+        Dielectric, DiffuseLight, Glossy, Isotropic, Lambertian, Material, Metal, Specular,
+    },
     p,
     sampler::{Sampler, SimpleSampler},
     shapes::{cuboid, Quad, Sphere, SphereMesh, Triangle},
@@ -18,15 +20,12 @@ use serde::Deserialize;
 use std::{collections::HashMap, fs};
 use tobj::{load_obj, GPU_LOAD_OPTIONS};
 
-mod old;
-
-pub use old::Scene as OldScene;
-
 #[derive(Debug, Clone)]
 pub struct Scene {
     pub integrator: SimpleIntegrator<SimpleCamera, SimpleSampler>,
     pub hittables: Vec<&'static dyn Hittable>,
     pub lights: HittableList,
+    pub materials: HashMap<String, &'static dyn Material>,
 }
 
 impl Scene {
@@ -45,7 +44,7 @@ impl Scene {
     }
 
     pub fn try_from_raw(raw: RawScene, rng: &mut Rng) -> anyhow::Result<Self> {
-        let (hittables, lights, bg) = raw.scene.into_scene(rng);
+        let (hittables, lights, materials, bg) = raw.scene.into_scene(rng);
         let camera = raw.camera.into_simple_camera();
         let sampler = SimpleSampler::new(&camera);
         let integrator = raw.integrator.into_simple_integrator(camera, sampler, bg);
@@ -54,6 +53,7 @@ impl Scene {
             integrator,
             hittables,
             lights,
+            materials,
         })
     }
 }
@@ -156,7 +156,15 @@ pub struct SceneSpec {
 }
 
 impl SceneSpec {
-    fn into_scene(self, rng: &mut Rng) -> (Vec<&'static dyn Hittable>, HittableList, Color) {
+    fn into_scene(
+        self,
+        rng: &mut Rng,
+    ) -> (
+        Vec<&'static dyn Hittable>,
+        HittableList,
+        HashMap<String, &'static dyn Material>,
+        Color,
+    ) {
         let mut hittables = Vec::new();
         let lights_names: Vec<_> = self
             .materials
@@ -197,7 +205,7 @@ impl SceneSpec {
             hittables.push(h);
         }
 
-        (hittables, lights, (&self.bg).into())
+        (hittables, lights, materials, (&self.bg).into())
     }
 }
 
@@ -230,6 +238,11 @@ pub enum MatSpec {
         color: ColorSpec,
     },
     Specular {
+        color: ColorSpec,
+        smoothness: f32,
+        spec_prob: f32,
+    },
+    Glossy {
         color: ColorSpec,
         smoothness: f32,
         spec_prob: f32,
@@ -283,6 +296,11 @@ impl MatSpec {
                 smoothness,
                 spec_prob,
             } => Specular::new_mat(color, *smoothness, *spec_prob),
+            MatSpec::Glossy {
+                color,
+                smoothness,
+                spec_prob,
+            } => Glossy::new_mat(color, *smoothness, *spec_prob),
             MatSpec::Checker { scale, odd, even } => Lambertian::checker(*scale, odd, even),
             MatSpec::Metal { color, fuzz } => Metal::new_mat(color, *fuzz),
             MatSpec::Dielectric { ref_index, color } => {

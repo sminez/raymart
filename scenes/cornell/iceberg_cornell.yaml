@@ -1,0 +1,98 @@
+integrator:
+  samples_per_pixel: 500
+  step_size: 10
+  max_bounces: 5
+
+camera:
+  image_width: 800
+  aspect_ratio: 1.0
+  fov: 40.0
+  from: [ 0.5, 0.5, -1.35 ]
+  at: [ 0.5, 0.5, 0.0 ]
+  v_up: [ 0.0, 1.0, 0.0 ]
+  defocus_angle: 1.0
+  focus_dist: 1.75
+
+scene:
+  bg: 0.01
+  meshes: []
+
+  materials:
+    light:
+      kind: light
+      color: [ 22.0, 21.0, 19.0 ]
+    dim_light:
+      kind: light
+      color: [ 6.0, 5.5, 4.5 ]
+    red:
+      kind: solid
+      color: [ 0.65, 0.05, 0.05 ]
+    green:
+      kind: solid
+      color: [ 0.12, 0.45, 0.15 ]
+    blue:
+      kind: solid
+      color: [ 0.12, 0.25, 0.55 ]
+    white:
+      kind: solid
+      color: 0.73
+    marble:
+      kind: specular
+      color: [ 0.7, 0.55, 0.4 ]
+      smoothness: 0.7
+      spec_prob: 0.1
+
+  objects:
+    # Cornell box
+    - kind: quad
+      material: dim_light
+      q: [ 0.61, 0.999, 0.59 ]
+      u: [ -0.23, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, -0.18 ]
+    - kind: quad
+      material: green
+      q: [ 1.0, 0.0, 0.0 ]
+      u: [ 0.0, 1.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: red
+      q: [ 0.0, 0.0, 0.0 ]
+      u: [ 0.0, 1.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: white
+      q: [ 0.0, 0.0, 0.0 ]
+      u: [ 1.0, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: blue
+      q: [ 0.0, 0.0, 1.0 ]
+      u: [ 1.0, 0.0, 0.0 ]
+      v: [ 0.0, 1.0, 0.0 ]
+    - kind: quad
+      material: white
+      q: [ 1.0, 1.0, 1.0 ]
+      u: [ -1, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, -1 ]
+
+    # Additional
+    - kind: noise_sphere
+      material: "marble"
+      seed: "big ears"
+      center: [ 0.5, 0.4, 0.5 ]
+      r: 0.42
+      subdivisions: 7
+      subtract: false
+      frac_inv: 2.0
+      noise_depth: 9
+
+    - kind: box
+      material: white
+      vert1: [ 0.0, 0.0, 0.0 ]
+      vert2: [ 1.0, 1.0, 1.0 ]
+      density: 0.01
+
+    - kind: sphere
+      center: [ 0.4, 0.4, 1.0 ]
+      r: 0.15
+      material: "light"

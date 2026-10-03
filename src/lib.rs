@@ -33,7 +33,7 @@ pub const DEBUG_SAMPLES_PER_PIXEL: u16 = 10; // number of random samples per pix
 pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
 pub const DEFOCUS_ANGLE: f32 = 0.0;
 pub const FOCUS_DIST: f32 = 10.0;
-pub const SCENE_PATH: &str = "scene.toml";
+pub const SCENE_PATH: &str = "scene.yaml";
 
 #[macro_export]
 macro_rules! p {

@@ -1,27 +1,25 @@
 use crate::{
     color, leak_ptr,
     material::{Material, ScatterRecord},
-    pdf::{CosinePdf, GlossyPdf, WeightedMixturePdf},
-    Color, HitRecord, Ray, Rng, V3,
+    pdf::CosinePdf,
+    v3, Color, HitRecord, Ray, Rng,
 };
+use rand::RngExt;
 use std::f32::consts::FRAC_1_PI;
 
 #[derive(Debug, Clone)]
 pub struct Specular {
     pub albedo: Color,
-    pub pdf: GlossyPdf,
     pub prob: f32,
+    pub smoothness: f32,
 }
 
 impl Specular {
     pub fn new_mat(albedo: impl Into<Color>, smoothness: f32, prob: f32) -> &'static dyn Material {
-        // Pre-computed here to cache the exponent terms rather than re-computing on every hit
-        let pdf = GlossyPdf::new(V3::X, V3::Y, smoothness);
-
         leak_ptr!(Self {
             albedo: albedo.into(),
-            pdf,
             prob: prob.clamp(0.0, 1.0),
+            smoothness,
         })
     }
 }
@@ -45,16 +43,22 @@ impl Material for Specular {
         }
     }
 
-    fn scatter(&self, r_in: &Ray, hr: &HitRecord, _rng: &mut Rng) -> Option<ScatterRecord> {
-        let reflect_dir = r_in.dir.reflect(hr.normal);
+    fn scatter(&self, r_in: &Ray, hr: &HitRecord, rng: &mut Rng) -> Option<ScatterRecord> {
+        let is_specular = self.prob > rng.random_range(0.0..1.0);
+        if is_specular {
+            let diffuse_dir = hr.normal + v3::random_unit_vector(rng);
+            let specular_dir = r_in.dir.reflect(hr.normal);
+            let dir = diffuse_dir.lerp(specular_dir, self.smoothness);
 
-        Some(ScatterRecord::Pdf {
-            attenuation: self.albedo,
-            pdf: Box::new(WeightedMixturePdf::new(
-                self.prob,
-                self.pdf.copy_with_hit_details(reflect_dir, hr.normal),
-                CosinePdf::new(hr.normal),
-            )),
-        })
+            Some(ScatterRecord::Skip {
+                attenuation: self.albedo,
+                ray: Ray::new(hr.p, dir),
+            })
+        } else {
+            Some(ScatterRecord::Pdf {
+                attenuation: self.albedo,
+                pdf: Box::new(CosinePdf::new(hr.normal)),
+            })
+        }
     }
 }

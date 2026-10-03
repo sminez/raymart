@@ -1,0 +1,80 @@
+integrator:
+  samples_per_pixel: 200
+  step_size: 10
+  max_bounces: 5
+
+camera:
+  image_width: 800
+  aspect_ratio: 1.0
+  fov: 40.0
+  from: [ 0.5, 0.5, -1.35 ]
+  at: [ 0.5, 0.5, 0.0 ]
+  v_up: [ 0.0, 1.0, 0.0 ]
+  defocus_angle: 0.0
+  focus_dist: 10.0
+
+scene:
+  bg: 0.01
+
+  materials:
+    light:
+      kind: light
+      color: 25.0
+    red:
+      kind: solid
+      color: [ 0.65, 0.05, 0.05 ]
+    green:
+      kind: solid
+      color: [ 0.12, 0.45, 0.15 ]
+    blue:
+      kind: solid
+      color: [ 0.12, 0.25, 0.55 ]
+    white:
+      kind: solid
+      color: 0.73
+    marble:
+      kind: specular
+      color: [ 0.7, 0.55, 0.4 ]
+      smoothness: 0.8
+      spec_prob: 0.4
+
+  meshes:
+    - path: assets/Dragon_8K.obj
+      material: marble
+      scale: 0.9
+      rotate: 45.0
+      translate: [ 0.52, 0.27, 0.47 ]
+
+  objects:
+    # Cornell box
+    - kind: quad
+      material: light
+      q: [ 0.61, 0.999, 0.59 ]
+      u: [ -0.23, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, -0.18 ]
+    - kind: quad
+      material: green
+      q: [ 1.0, 0.0, 0.0 ]
+      u: [ 0.0, 1.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: red
+      q: [ 0.0, 0.0, 0.0 ]
+      u: [ 0.0, 1.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: white
+      q: [ 0.0, 0.0, 0.0 ]
+      u: [ 1.0, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, 1.0 ]
+    - kind: quad
+      material: blue
+      q: [ 0.0, 0.0, 1.0 ]
+      u: [ 1.0, 0.0, 0.0 ]
+      v: [ 0.0, 1.0, 0.0 ]
+    - kind: quad
+      material: white
+      q: [ 1.0, 1.0, 1.0 ]
+      u: [ -1, 0.0, 0.0 ]
+      v: [ 0.0, 0.0, -1 ]
+    # Additional

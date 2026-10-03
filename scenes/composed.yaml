@@ -1,0 +1,142 @@
+integrator:
+  samples_per_pixel: 1000
+  step_size: 25
+  max_bounces: 20
+
+camera:
+  image_width: 1200
+  aspect_ratio: 1.6
+  fov: 10.0
+  from: [ 0.0, 1.0, 11.0 ]
+  at: [ 0.0, 0.0, 0.0 ]
+  v_up: [ 0.0, 1.0, 0.0 ]
+  defocus_angle: 0.0
+  focus_dist: 10.0
+
+scene:
+  bg: 0.0
+  meshes: []
+
+  materials:
+    light:
+      kind: light
+      color: [ 5.0, 4.0, 4.0 ]
+    dim_light:
+      kind: light
+      color: [ 0.5, 0.4, 0.4 ]
+    ground:
+      kind: checker
+      scale: 0.32
+      even: [ 0.1, 0.2, 0.07 ]
+      odd: 0.9
+    red:
+      kind: solid
+      color: [ 0.95, 0.15, 0.25 ]
+    gold:
+      kind: metal
+      color: [ 0.8, 0.6, 0.2 ]
+      fuzz: 0.02
+    dull_gold:
+      kind: metal
+      color: [ 0.8, 0.6, 0.2 ]
+      fuzz: 0.06
+    jade:
+      kind: metal
+      color: [ 0.2, 0.6, 0.8 ]
+      fuzz: 0.1
+    glass:
+      kind: dielectric
+      ref_index: 1.33
+    crystal:
+      kind: dielectric
+      ref_index: 3.0
+    air:
+      kind: dielectric
+      ref_index: 0.769
+
+  objects:
+    - kind: sphere
+      material: ground
+      center: [ 0.0, -100.5, -1 ]
+      r: 100
+    - kind: sphere
+      material: jade
+      center: [ 0.0, -100.5, -1 ]
+      r: 130
+    # lights
+    - kind: sphere
+      material: dim_light
+      center: [ 0.0, -100.5, -11 ]
+      r: 90.5
+    - kind: sphere
+      material: dim_light
+      center: [ 40.0, 20.0, -1.2 ]
+      r: 20.0
+    - kind: sphere
+      material: light
+      center: [ -2, 2.0, 2.2 ]
+      r: 0.9
+    # spheres
+    - kind: sphere
+      material: glass
+      center: [ -1, 0.0, -1.2 ]
+      r: 0.48
+    - kind: sphere
+      material: air
+      center: [ -1, 0.0, -1.2 ]
+      r: 0.45
+    - kind: sphere
+      material: crystal
+      center: [ -1, 0.0, -1.2 ]
+      r: 0.42
+
+    - kind: sphere
+      material: red
+      center: [ 0.0, 0.0, -1 ]
+      r: 0.48
+    - kind: sphere
+      material: glass
+      center: [ 0.0, 0.0, -1 ]
+      r: 0.5
+
+    - kind: sphere
+      material: gold
+      center: [ 1.0, 0.0, -1 ]
+      r: 0.48
+
+    - kind: sphere
+      material: glass
+      center: [ 0.4, -0.31, 1 ]
+      r: 0.22
+
+    - kind: sphere
+      material: dull_gold
+      center: [ -0.4, -0.3, 1 ]
+      r: 0.2
+    - kind: sphere
+      material: crystal
+      center: [ -0.4, -0.3, 1 ]
+      r: 0.201
+
+    - kind: sphere
+      material: red
+      center: [ -0.7, -0.42, 1.2 ]
+      r: 0.098
+    - kind: sphere
+      material: crystal
+      center: [ -0.7, -0.42, 1.2 ]
+      r: 0.1
+
+    - kind: sphere
+      material: red
+      center: [ -0.1, -0.43, 1.6 ]
+      r: 0.098
+    - kind: sphere
+      material: glass
+      center: [ -0.1, -0.43, 1.6 ]
+      r: 0.1
+
+    - kind: sphere
+      material: air
+      center: [ 0.6, -0.44, 1.9 ]
+      r: 0.1
