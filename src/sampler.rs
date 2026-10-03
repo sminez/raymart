@@ -1,7 +1,8 @@
 use crate::{camera::Camera, v3::Onb, Rng, P3, V3};
 use rand::RngExt;
+use std::fmt;
 
-pub trait Sampler: Send + Sync {
+pub trait Sampler: fmt::Debug + Send + Sync {
     fn sample_for_pixel(&self, i: usize, j: usize, rng: &mut Rng) -> V3;
 }
 
@@ -10,10 +11,11 @@ pub struct SimpleSampler {
     origin: P3,  // location of pixel 0,0
     delta_x: V3, // offset to pixel to the right
     delta_y: V3, // offset to pixel below
+    jitter: f32, // +-jitter to add to each sample
 }
 
 impl SimpleSampler {
-    pub fn new(camera: &impl Camera) -> Self {
+    pub fn new(camera: &impl Camera, jitter: f32) -> Self {
         let Onb { u, v, .. } = camera.basis();
         let (viewport_width, viewport_height) = camera.viewport_dims();
         let (image_width, image_height) = camera.image_dims();
@@ -29,18 +31,23 @@ impl SimpleSampler {
             origin,
             delta_x,
             delta_y,
+            jitter,
         }
     }
 }
 
 impl Sampler for SimpleSampler {
     fn sample_for_pixel(&self, i: usize, j: usize, rng: &mut Rng) -> V3 {
-        // Vector to a random point in the [-.5,-.5]-[+.5,+.5] unit square
-        let offset = V3::new(
-            rng.random_range(-0.5..0.5),
-            rng.random_range(-0.5..0.5),
-            0.0,
-        );
+        // Vector to a random point in the +-self.jitter unit square
+        let offset = if self.jitter == 0.0 {
+            V3::ZERO
+        } else {
+            V3::new(
+                rng.random_range(-self.jitter..self.jitter),
+                rng.random_range(-self.jitter..self.jitter),
+                0.0,
+            )
+        };
 
         self.origin
             + ((i as f32 + offset.x) * self.delta_x)

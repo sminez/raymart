@@ -24,17 +24,6 @@ pub use scene::Scene;
 pub use sdl::Backend;
 pub use v3::{P3, V3};
 
-pub const BG_COLOR: Color = Color::new(0.7, 0.8, 1.0); // default scene background color
-pub const ASPECT_RATIO: f32 = 16.0 / 10.0; // image aspect ratio
-pub const IMAGE_WIDTH: u16 = 1000; // image width in pixels
-pub const SAMPLES_PER_PIXEL: u16 = 4500; // number of random samples per pixel
-pub const STEP_SIZE: u16 = 100; // number of samples per render step
-pub const DEBUG_SAMPLES_PER_PIXEL: u16 = 10; // number of random samples per pixel
-pub const MAX_BOUNCES: u8 = 50; // maximum number of ray bounces allowed
-pub const DEFOCUS_ANGLE: f32 = 0.0;
-pub const FOCUS_DIST: f32 = 10.0;
-pub const SCENE_PATH: &str = "scene.yaml";
-
 #[macro_export]
 macro_rules! p {
     ($x:expr, $y:expr, $z:expr) => {

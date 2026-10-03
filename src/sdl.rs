@@ -1,5 +1,10 @@
 //! SDL2 backed rendering
-use crate::{color::to_rgb, hit::Hittable, integrator::Integrator, Bvh, Color};
+use crate::{
+    color::to_rgb,
+    hit::Hittable,
+    integrator::{render_with_hook, Integrator},
+    Bvh, Color,
+};
 use anyhow::anyhow;
 use sdl2::{
     event::Event,
@@ -13,19 +18,19 @@ use sdl2::{
 use std::{ops::ControlFlow, time::Instant};
 
 pub fn render_with_sdl_preview<I>(
-    integrator: &I,
+    integrator: &mut I,
     bvh: Bvh,
     lights: &'static dyn Hittable,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,
 ) -> (bool, Vec<Color>)
 where
-    I: Integrator,
+    I: Integrator + ?Sized,
 {
     let start = Instant::now();
     let iterations = integrator.num_iterations();
 
-    let (early_return, pixels) = integrator.render_with_hook(bvh, lights, |i, pixels| {
+    let (early_return, pixels) = render_with_hook(integrator, bvh, lights, |i, pixels| {
         let render_time = Instant::now().duration_since(start);
         eprintln!(
             "Render time so far ({i}/{iterations}): {}s",

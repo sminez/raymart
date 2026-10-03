@@ -1,13 +1,11 @@
 use gif::{Encoder, Frame, Repeat};
 use rand::SeedableRng;
 use raymart::{
-    camera::{Camera, SimpleCamera},
     color,
     hit::{Hittable, HittableList},
-    integrator::SimpleIntegrator,
+    integrator::Integrator,
     leak_ptr,
     noise::Perlin,
-    sampler::SimpleSampler,
     sdl::{render_with_sdl_preview, MainThreadState},
     shapes::SphereMesh,
     Backend, Bvh, Color, Rng, Scene, P3,
@@ -71,7 +69,7 @@ fn main() -> anyhow::Result<()> {
         .expect("unknown material name specified for sphere");
     let berg = SphereMesh::noise_sphere_with_source(p, r, 7, false, 2.0, 9, *mat, &noise);
 
-    let (w, h) = integrator.camera.image_dims();
+    let (w, h) = integrator.camera().image_dims();
     let (mut mts, canvas) = MainThreadState::init(w as u32, h as u32)?;
     let tc = canvas.texture_creator();
     let mut backend = Backend::init(w as u32, h as u32, canvas, &tc)?;
@@ -83,7 +81,7 @@ fn main() -> anyhow::Result<()> {
             berg,
             hittables.clone(),
             lights,
-            &integrator,
+            integrator,
             &mut mts,
             &mut backend,
         );
@@ -93,7 +91,7 @@ fn main() -> anyhow::Result<()> {
             berg,
             hittables.clone(),
             lights,
-            &integrator,
+            integrator,
             &mut mts,
             &mut backend,
         );
@@ -119,7 +117,7 @@ fn render_frame(
     mut berg: SphereMesh,
     mut hittables: Vec<&'static dyn Hittable>,
     lights: &'static HittableList,
-    integrator: &SimpleIntegrator<SimpleCamera, SimpleSampler>,
+    integrator: &mut dyn Integrator,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,
 ) -> (bool, Vec<Color>) {
@@ -138,12 +136,12 @@ fn render_gif(
     berg: SphereMesh,
     hittables: Vec<&'static dyn Hittable>,
     lights: &'static HittableList,
-    integrator: &SimpleIntegrator<SimpleCamera, SimpleSampler>,
+    integrator: &mut dyn Integrator,
     mts: &mut MainThreadState,
     backend: &mut Backend<'_>,
 ) {
     let mut frames = Vec::with_capacity(n_frames);
-    let (w, h) = integrator.camera.image_dims();
+    let (w, h) = integrator.camera().image_dims();
 
     let start = Instant::now();
 

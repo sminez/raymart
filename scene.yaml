@@ -2,6 +2,7 @@ integrator:
   samples_per_pixel: 200
   step_size: 10
   max_bounces: 5
+  render_depth_map: false
 
 camera:
   image_width: 800

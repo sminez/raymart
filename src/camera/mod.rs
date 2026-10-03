@@ -2,11 +2,12 @@ use crate::{
     v3::{self, Onb},
     Ray, Rng, P3, V3,
 };
-use std::cmp::max;
+use std::{cmp::max, fmt};
 
-pub trait Camera: Send + Sync {
+pub trait Camera: fmt::Debug + Send + Sync {
     fn get_ray(&self, sample: V3, r: &mut Ray, rng: &mut Rng);
     fn basis(&self) -> Onb;
+    fn center(&self) -> P3;
     fn image_dims(&self) -> (usize, usize);
     fn viewport_dims(&self) -> (f32, f32);
     fn viewport_top_left(&self) -> V3;
@@ -97,6 +98,10 @@ impl Camera for SimpleCamera {
 
     fn basis(&self) -> Onb {
         self.basis
+    }
+
+    fn center(&self) -> P3 {
+        self.center
     }
 
     fn viewport_top_left(&self) -> V3 {

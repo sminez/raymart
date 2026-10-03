@@ -1,5 +1,5 @@
 use criterion::{criterion_group, measurement::WallTime, BenchmarkGroup, Criterion};
-use raymart::{camera::Camera, leak_ptr, Bvh, Color, Scene};
+use raymart::{leak_ptr, Bvh, Color, Scene};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("Render pass");
@@ -34,12 +34,13 @@ fn scene_render_pass(title: &str, scene: &str, group: &mut BenchmarkGroup<'_, Wa
     let bvh = Bvh::new(hittables);
     let lights = leak_ptr!(lights);
 
-    let (w, h) = integrator.camera.image_dims();
-    let mut pixels = vec![Color::default(); w * h];
+    let (w, h) = integrator.camera().image_dims();
+    let pixels = vec![Color::default(); w * h];
+    let mut new_pixels = pixels.clone();
 
     group.bench_function(title, |b| {
         b.iter(|| {
-            integrator.render_pass(1, &bvh, lights, &mut pixels);
+            integrator.next_render_pass(1, &bvh, lights, &pixels, &mut new_pixels);
         })
     });
 }
