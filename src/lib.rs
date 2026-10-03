@@ -1,12 +1,15 @@
 pub use rand_xoshiro::Xoshiro128Plus as Rng;
 
 pub mod bvh;
+pub mod camera;
 pub mod color;
 pub mod hit;
+pub mod integrator;
 pub mod material;
 pub mod noise;
 pub mod pdf;
 pub mod ray;
+pub mod sampler;
 pub mod scene;
 pub mod sdl;
 pub mod shapes;

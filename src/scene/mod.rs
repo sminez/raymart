@@ -1,30 +1,204 @@
-//! helpers for working with meshes and scenes defined in config files
-//!   https://docs.blender.org/manual/en/dev/modeling/meshes/introduction.html
-//!   https://en.wikipedia.org/wiki/Wavefront_.obj_file
 use crate::{
-    bvh::Bvh,
+    camera::{Camera, SimpleCamera},
     hit::{
         transforms::{ConstantMedium, Rotate, Translate},
         Hittable, HittableList,
     },
+    integrator::SimpleIntegrator,
     leak_ptr,
     material::{Dielectric, DiffuseLight, Isotropic, Lambertian, Material, Metal, Specular},
     p,
-    ray::Camera,
+    sampler::{Sampler, SimpleSampler},
     shapes::{cuboid, Quad, Sphere, SphereMesh, Triangle},
-    v, Color, Rng, DEBUG_SAMPLES_PER_PIXEL, DEFOCUS_ANGLE, FOCUS_DIST, IMAGE_WIDTH, MAX_BOUNCES,
-    P3, STEP_SIZE, V3,
+    v, Bvh, Color, Rng, FOCUS_DIST, P3, V3,
 };
 use glam::Mat3;
+use rand::SeedableRng;
 use serde::Deserialize;
 use std::{collections::HashMap, fs};
 use tobj::{load_obj, GPU_LOAD_OPTIONS};
 
-macro_rules! pt {
-    ($ps:expr, $ix:expr, $i: expr) => {{
-        let idx = $ix[$i] as usize * 3;
-        P3::new($ps[idx], $ps[idx + 1], $ps[idx + 2])
-    }};
+mod old;
+
+pub use old::Scene as OldScene;
+
+#[derive(Debug, Clone)]
+pub struct Scene {
+    pub integrator: SimpleIntegrator<SimpleCamera, SimpleSampler>,
+    pub hittables: Vec<&'static dyn Hittable>,
+    pub lights: HittableList,
+}
+
+impl Scene {
+    pub fn try_from_file(path: &str) -> anyhow::Result<Self> {
+        let raw = RawScene::try_from_file(path)?;
+        let mut rng = Rng::seed_from_u64(0);
+
+        Self::try_from_raw(raw, &mut rng)
+    }
+
+    pub fn try_from_str(content: &str) -> anyhow::Result<Self> {
+        let raw = RawScene::try_from_str(content)?;
+        let mut rng = Rng::seed_from_u64(0);
+
+        Self::try_from_raw(raw, &mut rng)
+    }
+
+    pub fn try_from_raw(raw: RawScene, rng: &mut Rng) -> anyhow::Result<Self> {
+        let (hittables, lights, bg) = raw.scene.into_scene(rng);
+        let camera = raw.camera.into_simple_camera();
+        let sampler = SimpleSampler::new(&camera);
+        let integrator = raw.integrator.into_simple_integrator(camera, sampler, bg);
+
+        Ok(Self {
+            integrator,
+            hittables,
+            lights,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawScene {
+    pub integrator: IntegratorSpec,
+    pub camera: CameraSpec,
+    pub scene: SceneSpec,
+}
+
+impl RawScene {
+    pub fn try_from_file(path: &str) -> anyhow::Result<Self> {
+        let s = fs::read_to_string(path)?;
+
+        Ok(serde_yaml::from_str(&s)?)
+    }
+
+    pub fn try_from_str(content: &str) -> anyhow::Result<Self> {
+        Ok(serde_yaml::from_str(content)?)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct IntegratorSpec {
+    pub samples_per_pixel: usize,
+    #[serde(default)]
+    pub step_size: usize,
+    pub max_bounces: u8,
+}
+
+impl IntegratorSpec {
+    fn into_simple_integrator<C, S>(
+        self,
+        camera: C,
+        sampler: S,
+        bg: Color,
+    ) -> SimpleIntegrator<C, S>
+    where
+        C: Camera,
+        S: Sampler,
+    {
+        SimpleIntegrator::new(
+            camera,
+            sampler,
+            self.samples_per_pixel,
+            self.step_size,
+            self.max_bounces,
+            bg,
+        )
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CameraSpec {
+    pub image_width: usize,
+    pub aspect_ratio: f32,
+    pub fov: f32,
+    pub from: [f32; 3],
+    pub at: [f32; 3],
+    pub v_up: [f32; 3],
+    #[serde(default)]
+    pub defocus_angle: f32,
+    #[serde(default = "default_focus_dist")]
+    pub focus_dist: f32,
+}
+
+impl CameraSpec {
+    fn into_simple_camera(self) -> SimpleCamera {
+        let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);
+        let look_from = p!(self.from[0], self.from[1], self.from[2]);
+        let look_at = p!(self.at[0], self.at[1], self.at[2]);
+
+        SimpleCamera::new(
+            self.aspect_ratio,
+            self.image_width,
+            self.fov,
+            look_from,
+            look_at,
+            v_up,
+            self.defocus_angle,
+            self.focus_dist,
+        )
+    }
+}
+
+fn default_focus_dist() -> f32 {
+    FOCUS_DIST
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SceneSpec {
+    pub materials: HashMap<String, MatSpec>,
+    #[serde(default)]
+    pub meshes: Vec<Mesh>,
+    #[serde(default)]
+    pub objects: Vec<ObjSpec>,
+    #[serde(default)]
+    pub bg: ColorSpec,
+}
+
+impl SceneSpec {
+    fn into_scene(self, rng: &mut Rng) -> (Vec<&'static dyn Hittable>, HittableList, Color) {
+        let mut hittables = Vec::new();
+        let lights_names: Vec<_> = self
+            .materials
+            .iter()
+            .filter_map(|(k, v)| {
+                if matches!(v, MatSpec::Light { .. }) {
+                    Some(k.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let materials: HashMap<String, &'static dyn Material> = self
+            .materials
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_material(rng)))
+            .collect();
+
+        let mut lights = HittableList::default();
+
+        for mesh in self.meshes.iter() {
+            let h = mesh.as_dyn_hittable(&materials, &self.materials);
+
+            if lights_names.contains(&mesh.material.as_str()) {
+                lights.add(h);
+            }
+
+            hittables.push(h);
+        }
+
+        for obj in self.objects.clone().into_iter() {
+            let h = obj.as_dyn_hittable(&materials, &self.materials);
+            if lights_names.contains(&obj.hittable.material()) {
+                lights.add(h);
+            }
+
+            hittables.push(h);
+        }
+
+        (hittables, lights, (&self.bg).into())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -34,11 +208,17 @@ pub enum ColorSpec {
     Grey(f32),
 }
 
+impl Default for ColorSpec {
+    fn default() -> Self {
+        Self::Grey(0.0)
+    }
+}
+
 impl From<&ColorSpec> for Color {
     fn from(value: &ColorSpec) -> Self {
         match *value {
             ColorSpec::RGB([r, g, b]) => Color::new(r, g, b),
-            ColorSpec::Grey(v) => V3::splat(v),
+            ColorSpec::Grey(v) => Color::splat(v),
         }
     }
 }
@@ -129,89 +309,11 @@ pub struct HitMeta {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct Mesh {
-    pub path: String,
-    pub material: String,
-    #[serde(default)]
-    pub scale: f32,
-    #[serde(flatten)]
-    pub meta: HitMeta,
-}
-
-impl Mesh {
-    fn color(&self, mats: &HashMap<String, MatSpec>) -> Color {
-        mats.get(&self.material).unwrap().as_color()
-    }
-
-    fn as_dyn_hittable(
-        &self,
-        mats: &HashMap<String, &'static dyn Material>,
-        mat_specs: &HashMap<String, MatSpec>,
-        as_points: bool,
-        point_radius: f32,
-    ) -> &'static dyn Hittable {
-        let (models, _) = load_obj(&self.path, &GPU_LOAD_OPTIONS).unwrap();
-        let mat = *mats.get(&self.material).unwrap();
-        let mut objects = Vec::with_capacity(models.iter().map(|m| m.mesh.indices.len()).sum());
-        let scale = if self.scale == 0.0 { 1.0 } else { self.scale };
-
-        let rotation = self
-            .meta
-            .rotate
-            .map(|angle| Mat3::from_rotation_y(angle.to_radians()));
-        let translation = self.meta.translate.map(V3::from);
-
-        eprintln!("Loading meshes from {:?}...", self.path);
-        for m in models {
-            eprintln!("  mesh name = {:?}", m.name);
-            let ps = &m.mesh.positions;
-            let ix = &m.mesh.indices;
-
-            for i in 0..ix.len() / 3 {
-                let mut a = pt!(ps, ix, i * 3) * scale;
-                let mut b = pt!(ps, ix, i * 3 + 1) * scale;
-                let mut c = pt!(ps, ix, i * 3 + 2) * scale;
-
-                if let Some(rotation) = rotation {
-                    a = rotation * a;
-                    b = rotation * b;
-                    c = rotation * c;
-                }
-                if let Some(offset) = translation {
-                    a += offset;
-                    b += offset;
-                    c += offset;
-                }
-
-                if as_points {
-                    objects.extend([a, b, c].into_iter().map(|p| {
-                        leak_ptr!(Sphere::new(p, point_radius, mat)) as &'static dyn Hittable
-                    }));
-                } else {
-                    objects.push(leak_ptr!(Triangle::new(a, b, c, mat)));
-                }
-            }
-
-            eprintln!("    n vertices  = {}", ix.len());
-            eprintln!("    n hittables = {}", objects.len());
-        }
-
-        let mut h: &'static dyn Hittable = leak_ptr!(Bvh::new(objects));
-
-        if let Some(density) = self.meta.density {
-            h = leak_ptr!(ConstantMedium::new(h, density, self.color(mat_specs)));
-        }
-
-        h
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub struct ObjSpec {
     #[serde(flatten)]
     hittable: HittableSpec,
     #[serde(flatten)]
-    pub meta: HitMeta,
+    meta: HitMeta,
 }
 
 impl ObjSpec {
@@ -402,168 +504,79 @@ impl HittableSpec {
     }
 }
 
+macro_rules! pt {
+    ($ps:expr, $ix:expr, $i: expr) => {{
+        let idx = $ix[$i] as usize * 3;
+        P3::new($ps[idx], $ps[idx + 1], $ps[idx + 2])
+    }};
+}
+
 #[derive(Debug, Clone, Deserialize)]
-pub struct Scene {
-    // sim
-    pub samples_per_pixel: u16,
+pub struct Mesh {
+    pub path: String,
+    pub material: String,
     #[serde(default)]
-    pub samples_step_size: u16,
-    pub max_bounces: u8,
-    // camera
-    pub fov: f32,
-    pub image_width: u16,
-    pub aspect_ratio: f32,
-    pub from: [f32; 3],
-    pub at: [f32; 3],
-    pub v_up: [f32; 3],
-    #[serde(default)]
-    pub defocus_angle: f32,
-    #[serde(default = "default_focus_dist")]
-    pub focus_dist: f32,
-    // hittables
-    pub as_points: bool,
-    pub point_radius: f32,
-    pub materials: HashMap<String, MatSpec>,
-    #[serde(default)]
-    pub meshes: Vec<Mesh>,
-    #[serde(default)]
-    pub objects: Vec<ObjSpec>,
-    // light
-    pub bg: ColorSpec,
+    pub scale: f32,
+    #[serde(flatten)]
+    pub meta: HitMeta,
 }
 
-fn default_focus_dist() -> f32 {
-    FOCUS_DIST
-}
-
-impl Default for Scene {
-    fn default() -> Self {
-        Scene {
-            samples_per_pixel: DEBUG_SAMPLES_PER_PIXEL,
-            samples_step_size: STEP_SIZE,
-            max_bounces: MAX_BOUNCES,
-            image_width: IMAGE_WIDTH,
-            aspect_ratio: 1.0,
-            fov: 40.0,
-            from: [1.2, 0.2, -0.85],
-            at: [0.0, 0.0, 0.0],
-            v_up: [0.0, 1.0, 0.0],
-            as_points: false,
-            defocus_angle: DEFOCUS_ANGLE,
-            focus_dist: FOCUS_DIST,
-            point_radius: 0.001,
-            materials: [
-                (
-                    "grey",
-                    MatSpec::Solid {
-                        color: ColorSpec::Grey(0.5),
-                    },
-                ),
-                (
-                    "light",
-                    MatSpec::Light {
-                        color: ColorSpec::Grey(25.0),
-                    },
-                ),
-            ]
-            .into_iter()
-            .map(|(s, m)| (s.to_string(), m))
-            .collect(),
-            meshes: vec![Mesh {
-                path: "assets/Dragon_8K.obj".to_string(),
-                material: "grey".to_string(),
-                scale: 1.0,
-                meta: HitMeta::default(),
-            }],
-            objects: vec![ObjSpec {
-                hittable: HittableSpec::Sphere {
-                    center: [1.0, 1.0, 1.0],
-                    r: 1.0,
-                    material: "light".to_string(),
-                },
-                meta: HitMeta::default(),
-            }],
-            bg: ColorSpec::RGB([0.7, 0.8, 1.0]),
-        }
-    }
-}
-
-impl Scene {
-    pub fn try_from_file(path: &str) -> Option<Self> {
-        let s = fs::read_to_string(path).ok()?;
-
-        Some(toml::from_str(&s).unwrap())
+impl Mesh {
+    fn color(&self, mats: &HashMap<String, MatSpec>) -> Color {
+        mats.get(&self.material).unwrap().as_color()
     }
 
-    pub fn try_from_str(content: &str) -> Option<Self> {
-        Some(toml::from_str(content).unwrap())
-    }
+    fn as_dyn_hittable(
+        &self,
+        mats: &HashMap<String, &'static dyn Material>,
+        mat_specs: &HashMap<String, MatSpec>,
+    ) -> &'static dyn Hittable {
+        let (models, _) = load_obj(&self.path, &GPU_LOAD_OPTIONS).unwrap();
+        let mat = *mats.get(&self.material).unwrap();
+        let mut objects = Vec::with_capacity(models.iter().map(|m| m.mesh.indices.len()).sum());
+        let scale = if self.scale == 0.0 { 1.0 } else { self.scale };
 
-    pub fn load_scene(&self, rng: &mut Rng) -> (Vec<&'static dyn Hittable>, HittableList, Camera) {
-        let mut hittables = Vec::new();
-        let lights_names: Vec<_> = self
-            .materials
-            .iter()
-            .filter_map(|(k, v)| {
-                if matches!(v, MatSpec::Light { .. }) {
-                    Some(k.as_str())
-                } else {
-                    None
+        let rotation = self
+            .meta
+            .rotate
+            .map(|angle| Mat3::from_rotation_y(angle.to_radians()));
+        let translation = self.meta.translate.map(V3::from);
+
+        eprintln!("Loading meshes from {:?}...", self.path);
+        for m in models {
+            eprintln!("  mesh name = {:?}", m.name);
+            let ps = &m.mesh.positions;
+            let ix = &m.mesh.indices;
+
+            for i in 0..ix.len() / 3 {
+                let mut a = pt!(ps, ix, i * 3) * scale;
+                let mut b = pt!(ps, ix, i * 3 + 1) * scale;
+                let mut c = pt!(ps, ix, i * 3 + 2) * scale;
+
+                if let Some(rotation) = rotation {
+                    a = rotation * a;
+                    b = rotation * b;
+                    c = rotation * c;
                 }
-            })
-            .collect();
+                if let Some(offset) = translation {
+                    a += offset;
+                    b += offset;
+                    c += offset;
+                }
 
-        let materials: HashMap<String, &'static dyn Material> = self
-            .materials
-            .iter()
-            .map(|(k, v)| (k.clone(), v.as_material(rng)))
-            .collect();
-
-        let mut lights = HittableList::default();
-
-        for mesh in self.meshes.iter() {
-            let h = mesh.as_dyn_hittable(
-                &materials,
-                &self.materials,
-                self.as_points,
-                self.point_radius,
-            );
-
-            if lights_names.contains(&mesh.material.as_str()) {
-                lights.add(h);
+                objects.push(leak_ptr!(Triangle::new(a, b, c, mat)) as &'static dyn Hittable);
             }
 
-            hittables.push(h);
+            eprintln!("    n vertices  = {}", ix.len());
+            eprintln!("    n hittables = {}", objects.len());
         }
 
-        for obj in self.objects.clone().into_iter() {
-            let h = obj.as_dyn_hittable(&materials, &self.materials);
-            if lights_names.contains(&obj.hittable.material()) {
-                lights.add(h);
-            }
+        let mut h: &'static dyn Hittable = leak_ptr!(Bvh::new(objects));
 
-            hittables.push(h);
+        if let Some(density) = self.meta.density {
+            h = leak_ptr!(ConstantMedium::new(h, density, self.color(mat_specs)));
         }
 
-        let v_up = v!(self.v_up[0], self.v_up[1], self.v_up[2]);
-        let look_from = p!(self.from[0], self.from[1], self.from[2]);
-        let look_at = p!(self.at[0], self.at[1], self.at[2]);
-
-        let camera = Camera::new(
-            self.aspect_ratio,
-            self.image_width,
-            self.samples_per_pixel,
-            self.samples_step_size,
-            self.max_bounces,
-            (&self.bg).into(),
-            self.fov,
-            look_from,
-            look_at,
-            v_up,
-            self.defocus_angle,
-            self.focus_dist,
-        );
-
-        (hittables, lights, camera)
+        h
     }
 }

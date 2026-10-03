@@ -1,15 +1,65 @@
 //! SDL2 backed rendering
+use crate::{color::to_rgb, hit::Hittable, integrator::Integrator, Bvh, Color};
 use anyhow::anyhow;
 use sdl2::{
     event::Event,
+    keyboard::Keycode,
     pixels::PixelFormatEnum,
     rect::Rect as Sdl2Rect,
     render::{Canvas, Texture, TextureCreator},
     video::{Window, WindowContext},
     EventPump, Sdl, VideoSubsystem,
 };
+use std::{ops::ControlFlow, time::Instant};
 
-use crate::{color::to_rgb, Color};
+pub fn render_with_sdl_preview<I>(
+    integrator: &I,
+    bvh: Bvh,
+    lights: &'static dyn Hittable,
+    mts: &mut MainThreadState,
+    backend: &mut Backend<'_>,
+) -> (bool, Vec<Color>)
+where
+    I: Integrator,
+{
+    let start = Instant::now();
+    let iterations = integrator.num_iterations();
+
+    let (early_return, pixels) = integrator.render_with_hook(bvh, lights, |i, pixels| {
+        let render_time = Instant::now().duration_since(start);
+        eprintln!(
+            "Render time so far ({i}/{iterations}): {}s",
+            render_time.as_secs()
+        );
+
+        if let Err(e) = backend.render(pixels) {
+            eprintln!("failed to render SDL preview: {e}");
+        }
+
+        while let Some(evt) = mts.poll_event() {
+            match evt {
+                Event::Quit { .. } => {
+                    return ControlFlow::Break(true);
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Q | Keycode::Escape),
+                    repeat: false,
+                    ..
+                } => {
+                    return ControlFlow::Break(true);
+                }
+                _ => (),
+            }
+        }
+
+        ControlFlow::Continue(())
+    });
+
+    let render_time = Instant::now().duration_since(start);
+    eprintln!("\nRender time: {}s", render_time.as_secs());
+
+    (early_return.unwrap_or(false), pixels)
+}
 
 pub struct MainThreadState {
     _ctx: Sdl,

@@ -82,7 +82,6 @@ pub struct Onb {
 impl Onb {
     pub fn new(normal: V3) -> Self {
         let w = normal.normalize();
-        // TODO: check that these are the right way round for a LH basis
         let (u, v) = w.any_orthonormal_pair();
 
         Self { u, v, w }

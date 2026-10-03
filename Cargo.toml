@@ -31,6 +31,7 @@ tobj = { version = "4.0.5", default-features = false, features = [] }
 toml = "1.1.6"
 wide = "1.7.1"
 gif = "0.14.2"
+serde_yaml = "0.9.34"
 
 [dev-dependencies]
 criterion = { version = "0.8.2", features = ["html_reports"] }

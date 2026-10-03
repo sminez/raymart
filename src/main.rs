@@ -1,5 +1,9 @@
-use rand::SeedableRng;
-use raymart::{color, leak_ptr, sdl::MainThreadState, Backend, Bvh, Rng, Scene, SCENE_PATH};
+use raymart::{
+    camera::Camera,
+    color, leak_ptr,
+    sdl::{render_with_sdl_preview, MainThreadState},
+    Backend, Bvh, Scene, SCENE_PATH,
+};
 use sdl2::{event::Event, keyboard::Keycode};
 use std::{env, fs};
 
@@ -7,25 +11,29 @@ fn main() -> anyhow::Result<()> {
     let path = env::args().nth(1).unwrap_or_else(|| SCENE_PATH.to_string());
     eprintln!("scene = {path}");
 
-    let s = Scene::try_from_file(&path).unwrap_or_default();
-    let mut rng = Rng::seed_from_u64(0);
-    let (hittables, lights, camera) = s.load_scene(&mut rng);
+    let Scene {
+        integrator,
+        hittables,
+        lights,
+    } = Scene::try_from_file(&path)?;
+
+    eprintln!("{integrator:#?}");
     let lights = leak_ptr!(lights);
 
     eprintln!("Computing bvh tree...");
-    let bvh_tree = Bvh::new(hittables);
+    let bvh = Bvh::new(hittables);
     eprintln!(
         "BVH bounding box:\n  x={:?}\n  y={:?}\n  z={:?}",
-        bvh_tree.bbox.x, bvh_tree.bbox.y, bvh_tree.bbox.z,
+        bvh.bbox.x, bvh.bbox.y, bvh.bbox.z,
     );
 
-    let (w, h) = camera.dims();
-    let (mut mts, canvas) = MainThreadState::init(w, h)?;
+    let (w, h) = integrator.camera.image_dims();
+    let (mut mts, canvas) = MainThreadState::init(w as u32, h as u32)?;
     let tc = canvas.texture_creator();
-    let mut backend = Backend::init(w, h, canvas, &tc)?;
+    let mut backend = Backend::init(w as u32, h as u32, canvas, &tc)?;
 
     eprintln!("Rendering...");
-    let (_, pixels) = camera.render_sdl(bvh_tree, lights, &mut mts, &mut backend);
+    let (_, pixels) = render_with_sdl_preview(&integrator, bvh, lights, &mut mts, &mut backend);
 
     eprintln!("writing ppm file");
     let s: String = pixels.iter().map(|c| color::ppm_string(*c)).collect();
