@@ -2,41 +2,34 @@ use crate::{
     bvh::MAX_BVH_DEPTH,
     camera::Camera,
     hit::{Hittable, Interval},
-    integrator::{depth::DepthBuffer, Integrator},
-    material::ScatterRecord,
+    integrator::Integrator,
     sampler::{Sampler, SimpleSampler},
-    Bvh, Color, HitRecord, Ray, Rng,
+    Bvh, Color, Ray, Rng,
 };
 use rand::SeedableRng;
 use rayon::prelude::*;
 
 #[derive(Debug, Clone)]
-pub struct RaycastIntegrator<C>
+pub struct NormalIntegrator<C>
 where
     C: Camera,
 {
     pub camera: C,
     pub sampler: SimpleSampler,
-    pub depth_buf: DepthBuffer,
 }
 
-impl<C> RaycastIntegrator<C>
+impl<C> NormalIntegrator<C>
 where
     C: Camera,
 {
-    pub fn new(camera: C, max_depth: f32) -> Self {
+    pub fn new(camera: C) -> Self {
         let sampler = SimpleSampler::new(&camera, 0.0);
 
-        Self {
-            camera,
-            sampler,
-            depth_buf: DepthBuffer::new(Some(max_depth), true),
-        }
+        Self { camera, sampler }
     }
 
     pub fn render_pass(&mut self, bvh: &Bvh, pixels: &mut [Color]) {
         let (image_width, _) = self.camera.image_dims();
-        let center = self.camera().center();
 
         pixels
             .par_chunks_mut(image_width)
@@ -49,27 +42,17 @@ where
                 for (i, px) in row.iter_mut().enumerate() {
                     let sample = self.sampler.sample_for_pixel(i, j, &mut rng);
                     self.camera.get_ray(sample, &mut r_in, &mut rng);
-                    let hr = bvh.hits_with_stack(&r_in, Interval::TO_INFINITY, &mut stack);
 
-                    *px = self
-                        .ray_color(&mut r_in, hr.as_ref(), &mut rng)
-                        .unwrap_or_default()
-                        * self.depth_buf.pixel_color(center, hr.as_ref());
+                    *px = match bvh.hits_with_stack(&r_in, Interval::TO_INFINITY, &mut stack) {
+                        Some(hr) => hr.normal.abs(),
+                        None => Color::ZERO,
+                    };
                 }
             });
     }
-
-    fn ray_color(&self, r_in: &mut Ray, hr: Option<&HitRecord>, rng: &mut Rng) -> Option<Color> {
-        let hr = hr?;
-
-        Some(match hr.mat.scatter(r_in, hr, rng)? {
-            ScatterRecord::Pdf { attenuation, .. } => attenuation,
-            ScatterRecord::Skip { attenuation, .. } => attenuation,
-        })
-    }
 }
 
-impl<C> Integrator for RaycastIntegrator<C>
+impl<C> Integrator for NormalIntegrator<C>
 where
     C: Camera,
 {

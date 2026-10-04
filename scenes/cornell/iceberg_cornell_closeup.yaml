@@ -1,19 +1,19 @@
 integrator:
   kind: simple
-  max_depth: 3.0
-  samples_per_pixel: 200
-  step_size: 10
+  max_depth: 2.5
+  samples_per_pixel: 800
+  step_size: 20
   max_bounces: 5
 
 camera:
-  image_width: 800
+  image_width: 1200
   aspect_ratio: 1.0
-  fov: 40.0
-  from: [ 0.5, 0.5, -1.35 ]
-  at: [ 0.5, 0.5, 0.0 ]
+  fov: 9.0
+  from: [ 0.33, 0.56, -1.35 ]
+  at: [ 0.33, 0.56, 0.0 ]
   v_up: [ 0.0, 1.0, 0.0 ]
-  defocus_angle: 0.0
-  focus_dist: 10.0
+  defocus_angle: 1.0
+  focus_dist: 1.8
 
 scene:
   bg: 0.01
@@ -66,8 +66,8 @@ scene:
       u: [ 0.0, 1.0, 0.0 ]
       v: [ 0.0, 0.0, 1.0 ]
     - kind: quad
-      material: white
-      # material: mirror
+      # material: white
+      material: mirror
       q: [ 0.0, 0.0, 0.0 ]
       u: [ 1.0, 0.0, 0.0 ]
       v: [ 0.0, 0.0, 1.0 ]
@@ -78,8 +78,8 @@ scene:
       u: [ 1.0, 0.0, 0.0 ]
       v: [ 0.0, 1.0, 0.0 ]
     - kind: quad
-      material: white
-      # material: mirror
+      # material: white
+      material: mirror
       # material: blue
       q: [ 1.0, 1.0, 1.0 ]
       u: [ -1, 0.0, 0.0 ]
@@ -91,7 +91,7 @@ scene:
       seed: "big ears"
       center: [ 0.5, 0.4, 0.5 ]
       r: 0.42
-      subdivisions: 7
+      subdivisions: 8
       subtract: false
       frac_inv: 2.0
       noise_depth: 9

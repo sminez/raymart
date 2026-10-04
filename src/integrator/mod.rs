@@ -2,10 +2,12 @@ use crate::{camera::Camera, hit::Hittable, Bvh, Color};
 use std::{fmt, mem, ops::ControlFlow};
 
 mod depth;
+mod normal;
 mod raycast;
 mod simple;
 
 pub use depth::DepthIntegrator;
+pub use normal::NormalIntegrator;
 pub use raycast::RaycastIntegrator;
 pub use simple::SimpleIntegrator;
 

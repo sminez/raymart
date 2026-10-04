@@ -1,6 +1,8 @@
 use crate::{
     camera::Camera,
-    integrator::{DepthIntegrator, Integrator, RaycastIntegrator, SimpleIntegrator},
+    integrator::{
+        DepthIntegrator, Integrator, NormalIntegrator, RaycastIntegrator, SimpleIntegrator,
+    },
     leak_ptr,
     sampler::Sampler,
     Color,
@@ -21,6 +23,7 @@ pub enum IntegratorSpec {
     Raycast {
         max_depth: f32,
     },
+    Normal,
 }
 
 impl IntegratorSpec {
@@ -55,6 +58,8 @@ impl IntegratorSpec {
             }
 
             Self::Raycast { max_depth } => leak_ptr!(RaycastIntegrator::new(camera, max_depth)),
+
+            Self::Normal => leak_ptr!(NormalIntegrator::new(camera)),
         }
     }
 }

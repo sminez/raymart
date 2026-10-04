@@ -29,7 +29,7 @@ where
         Self {
             camera,
             sampler,
-            depth_buf: DepthBuffer::new(max_depth),
+            depth_buf: DepthBuffer::new(max_depth, false),
         }
     }
 
@@ -91,13 +91,15 @@ where
 pub struct DepthBuffer {
     pub clamped_max: Option<f32>,
     pub buf: Vec<f32>,
+    pub square_falloff: bool,
 }
 
 impl DepthBuffer {
-    pub fn new(clamped_max: Option<f32>) -> Self {
+    pub fn new(clamped_max: Option<f32>, square_falloff: bool) -> Self {
         Self {
             clamped_max,
             buf: Vec::new(),
+            square_falloff,
         }
     }
 
@@ -123,7 +125,9 @@ impl DepthBuffer {
     pub(super) fn iter_pixel_colors<'a>(&'a self) -> impl Iterator<Item = Color> + 'a {
         let max = self.max_depth();
 
-        self.buf.iter().map(move |d| Self::depth_color(*d, max))
+        self.buf
+            .iter()
+            .map(move |d| Self::depth_color(*d, max, self.square_falloff))
     }
 
     #[inline(always)]
@@ -135,11 +139,11 @@ impl DepthBuffer {
     }
 
     #[inline(always)]
-    pub fn depth_color(depth: f32, max: f32) -> Color {
+    pub fn depth_color(depth: f32, max: f32, square_falloff: bool) -> Color {
         Color::splat(if depth.is_sign_negative() || depth >= max {
             0.0
         } else {
-            1.0 - (depth / max)
+            (1.0 - (depth / max)).powi(if square_falloff { 2 } else { 1 })
         })
     }
 
@@ -151,6 +155,7 @@ impl DepthBuffer {
                 None => -1.0,
             },
             self.max_depth(),
+            self.square_falloff,
         )
     }
 }
