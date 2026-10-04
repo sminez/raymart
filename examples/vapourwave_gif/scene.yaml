@@ -1,6 +1,7 @@
 # 0.0 0.0 0.0 0.4
 # marble
 integrator:
+  kind: simple
   samples_per_pixel: 200
   step_size: 10
   max_bounces: 5

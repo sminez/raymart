@@ -74,6 +74,7 @@ where
                 let mut rng = Rng::seed_from_u64(((i * RAND_JITTER) + j) as u64);
                 let mut r_in = Ray::default();
                 let mut r_out = Ray::default();
+                let mut stack = [(0, 0.0); MAX_BVH_DEPTH];
 
                 for (i, px) in row.iter_mut().enumerate() {
                     let mut acc = Color::default();
@@ -81,7 +82,8 @@ where
                     for _ in 0..self.samples_pp {
                         let sample = self.sampler.sample_for_pixel(i, j, &mut rng);
                         self.camera.get_ray(sample, &mut r_in, &mut rng);
-                        acc += self.ray_color(&mut r_in, &mut r_out, bvh, lights, &mut rng);
+                        acc += self
+                            .ray_color(&mut r_in, &mut r_out, bvh, lights, &mut stack, &mut rng);
                     }
 
                     *px = acc;
@@ -95,14 +97,14 @@ where
         scattered: &mut Ray,
         bvh: &Bvh,
         lights: &'static dyn Hittable,
+        stack: &mut [(usize, f32); MAX_BVH_DEPTH],
         rng: &mut Rng,
     ) -> Color {
         let mut radiance = color::BLACK;
         let mut beta = color::WHITE;
-        let mut stack = [(0, 0.0); MAX_BVH_DEPTH];
 
         for _ in 0..self.max_bounces {
-            let hr = match bvh.hits_with_stack(r_in, Interval::TO_INFINITY, &mut stack) {
+            let hr = match bvh.hits_with_stack(r_in, Interval::TO_INFINITY, stack) {
                 Some(hr) => hr,
                 None => return radiance + beta * self.bg,
             };

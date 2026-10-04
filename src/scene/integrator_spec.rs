@@ -1,18 +1,26 @@
 use crate::{
     camera::Camera,
-    integrator::{DepthIntegrator, Integrator, SimpleIntegrator},
+    integrator::{DepthIntegrator, Integrator, RaycastIntegrator, SimpleIntegrator},
+    leak_ptr,
     sampler::Sampler,
     Color,
 };
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct IntegratorSpec {
-    pub samples_per_pixel: usize,
-    #[serde(default)]
-    pub step_size: usize,
-    pub max_bounces: u8,
-    pub render_depth_map: bool,
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum IntegratorSpec {
+    Simple {
+        samples_per_pixel: usize,
+        step_size: Option<usize>,
+        max_bounces: u8,
+    },
+    Depth {
+        max_depth: Option<f32>,
+    },
+    Raycast {
+        max_depth: f32,
+    },
 }
 
 impl IntegratorSpec {
@@ -26,17 +34,27 @@ impl IntegratorSpec {
         C: Camera + 'static,
         S: Sampler + 'static,
     {
-        if self.render_depth_map {
-            Box::leak(Box::new(DepthIntegrator::new(camera)) as Box<dyn Integrator>)
-        } else {
-            Box::leak(Box::new(SimpleIntegrator::new(
-                camera,
-                sampler,
-                self.samples_per_pixel,
-                self.step_size,
-                self.max_bounces,
-                bg,
-            )))
+        match self {
+            Self::Simple {
+                samples_per_pixel,
+                step_size,
+                max_bounces,
+            } => {
+                leak_ptr!(SimpleIntegrator::new(
+                    camera,
+                    sampler,
+                    samples_per_pixel,
+                    step_size.unwrap_or(0),
+                    max_bounces,
+                    bg,
+                ))
+            }
+
+            Self::Depth { max_depth } => {
+                leak_ptr!(DepthIntegrator::new(camera, max_depth))
+            }
+
+            Self::Raycast { max_depth } => leak_ptr!(RaycastIntegrator::new(camera, max_depth)),
         }
     }
 }

@@ -1,8 +1,9 @@
 integrator:
+  kind: simple
+  max_depth: 2.5
   samples_per_pixel: 200
   step_size: 10
   max_bounces: 5
-  render_depth_map: false
 
 camera:
   image_width: 800
@@ -65,8 +66,8 @@ scene:
       u: [ 0.0, 1.0, 0.0 ]
       v: [ 0.0, 0.0, 1.0 ]
     - kind: quad
-      material: mirror
-      # material: white
+      material: white
+      # material: mirror
       q: [ 0.0, 0.0, 0.0 ]
       u: [ 1.0, 0.0, 0.0 ]
       v: [ 0.0, 0.0, 1.0 ]
@@ -77,8 +78,8 @@ scene:
       u: [ 1.0, 0.0, 0.0 ]
       v: [ 0.0, 1.0, 0.0 ]
     - kind: quad
-      material: mirror
-      # material: white
+      material: white
+      # material: mirror
       # material: blue
       q: [ 1.0, 1.0, 1.0 ]
       u: [ -1, 0.0, 0.0 ]

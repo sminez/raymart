@@ -1,4 +1,5 @@
 integrator:
+  kind: simple
   samples_per_pixel: 1000
   step_size: 25
   max_bounces: 20
