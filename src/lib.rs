@@ -3,6 +3,7 @@ pub use rand_xoshiro::Xoshiro128Plus as Rng;
 pub mod bvh;
 pub mod camera;
 pub mod color;
+pub mod gpu;
 pub mod hit;
 pub mod integrator;
 pub mod material;

@@ -32,6 +32,10 @@ toml = "1.1.6"
 wide = "1.7.1"
 gif = "0.14.2"
 serde_yaml = "0.9.34"
+bytemuck = "1.25.2"
+wgpu = "30.0.1"
+eframe = "0.36.2"
+egui-wgpu = "0.36.2"
 
 [dev-dependencies]
 criterion = { version = "0.8.2", features = ["html_reports"] }
