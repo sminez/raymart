@@ -4,6 +4,10 @@ use raymart::{leak_ptr, Bvh, Color, Scene};
 fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("Render pass");
 
+    _ = rayon::ThreadPoolBuilder::new()
+        .num_threads(std::thread::available_parallelism().unwrap().get())
+        .build_global();
+
     scene_render_pass(
         "cuboids cornell",
         include_str!("./cuboids_cornell.yaml"),

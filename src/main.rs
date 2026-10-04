@@ -4,7 +4,7 @@ use raymart::{
     Backend, Bvh, Scene,
 };
 use sdl2::{event::Event, keyboard::Keycode};
-use std::{env, fs};
+use std::{env, fs, thread::available_parallelism};
 
 const SCENE_PATH: &str = "scene.yaml";
 
@@ -20,7 +20,14 @@ fn main() -> anyhow::Result<()> {
     } = Scene::try_from_file(&path)?;
 
     eprintln!("{integrator:#?}");
-    let lights = leak_ptr!(lights);
+    let (w, h) = integrator.camera().image_dims();
+    let (mut mts, canvas) = MainThreadState::init(w as u32, h as u32)?;
+    let tc = canvas.texture_creator();
+    let mut backend = Backend::init(w as u32, h as u32, canvas, &tc)?;
+
+    _ = rayon::ThreadPoolBuilder::new()
+        .num_threads(available_parallelism().unwrap().get())
+        .build_global();
 
     eprintln!("Computing bvh tree...");
     let bvh = Bvh::new(hittables);
@@ -29,12 +36,8 @@ fn main() -> anyhow::Result<()> {
         bvh.bbox.x, bvh.bbox.y, bvh.bbox.z,
     );
 
-    let (w, h) = integrator.camera().image_dims();
-    let (mut mts, canvas) = MainThreadState::init(w as u32, h as u32)?;
-    let tc = canvas.texture_creator();
-    let mut backend = Backend::init(w as u32, h as u32, canvas, &tc)?;
-
     eprintln!("Rendering...");
+    let lights = leak_ptr!(lights);
     let (_, pixels) = render_with_sdl_preview(integrator, bvh, lights, &mut mts, &mut backend);
 
     eprintln!("writing ppm file");

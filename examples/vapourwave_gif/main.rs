@@ -15,6 +15,7 @@ use std::{
     env,
     fs::{self, File},
     hash::{DefaultHasher, Hash, Hasher},
+    thread::available_parallelism,
     time::Instant,
 };
 
@@ -61,6 +62,17 @@ fn main() -> anyhow::Result<()> {
         lights,
         materials,
     } = Scene::try_from_file(SCENE).unwrap();
+
+    eprintln!("{integrator:#?}");
+    let (w, h) = integrator.camera().image_dims();
+    let (mut mts, canvas) = MainThreadState::init(w as u32, h as u32)?;
+    let tc = canvas.texture_creator();
+    let mut backend = Backend::init(w as u32, h as u32, canvas, &tc)?;
+
+    _ = rayon::ThreadPoolBuilder::new()
+        .num_threads(available_parallelism().unwrap().get())
+        .build_global();
+
     let lights = leak_ptr!(lights);
 
     // Create our iceberg
@@ -68,11 +80,6 @@ fn main() -> anyhow::Result<()> {
         .get(mat_name)
         .expect("unknown material name specified for sphere");
     let berg = SphereMesh::noise_sphere_with_source(p, r, 7, false, 2.0, 9, *mat, &noise);
-
-    let (w, h) = integrator.camera().image_dims();
-    let (mut mts, canvas) = MainThreadState::init(w as u32, h as u32)?;
-    let tc = canvas.texture_creator();
-    let mut backend = Backend::init(w as u32, h as u32, canvas, &tc)?;
 
     if preview_only {
         render_frame(
