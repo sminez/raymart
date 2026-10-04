@@ -1,5 +1,5 @@
 integrator:
-  kind: simple
+  kind: normal
   max_depth: 2.5
   samples_per_pixel: 800
   step_size: 20
